@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>MAM Server Test Client</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .connected { background-color: #d4edda; color: #155724; }
+        .disconnected { background-color: #f8d7da; color: #721c24; }
+        .log { background-color: #f8f9fa; padding: 10px; margin: 10px 0; border-radius: 5px; max-height: 300px; overflow-y: auto; font-family: monospace; font-size: 12px; }
+        button { padding: 10px 20px; margin: 5px; }
+        input { padding: 5px; margin: 5px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>MAM Server Test Client</h1>
+        
+        <div id="status" class="status disconnected">Disconnected</div>
+        
+        <div>
+            <input type="text" id="playerId" placeholder="Player ID" value="player_123">
+            <input type="text" id="skin" placeholder="Skin" value="default">
+            <button onclick="connect()">Connect</button>
+            <button onclick="disconnect()">Disconnect</button>
+        </div>
+        
+        <div>
+            <h3>Movement Controls</h3>
+            <button onclick="movePlayer(1, 0, 0)">Move Right</button>
+            <button onclick="movePlayer(-1, 0, 0)">Move Left</button>
+            <button onclick="movePlayer(0, 0, 1)">Move Forward</button>
+            <button onclick="movePlayer(0, 0, -1)">Move Back</button>
+            <button onclick="setAnimation('walking')">Walk</button>
+            <button onclick="setAnimation('idle')">Idle</button>
+        </div>
+        
+        <div>
+            <h3>Current State</h3>
+            <div id="playerState">Not connected</div>
+        </div>
+        
+        <div>
+            <h3>Server Log</h3>
+            <div id="log" class="log"></div>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let playerState = {
+            id: "",
+            position: { x: 0, y: 0, z: 0 },
+            rotation: { x: 0, y: 0, z: 0, w: 1 },
+            animationState: "idle",
+            skin: "default"
+        };
+
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logDiv.innerHTML += `[${timestamp}] ${message}<br>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function updateStatus(connected) {
+            const statusDiv = document.getElementById('status');
+            if (connected) {
+                statusDiv.className = 'status connected';
+                statusDiv.textContent = 'Connected to server';
+            } else {
+                statusDiv.className = 'status disconnected';
+                statusDiv.textContent = 'Disconnected';
+            }
+        }
+
+        function updatePlayerState() {
+            const stateDiv = document.getElementById('playerState');
+            stateDiv.innerHTML = `
+                <strong>Player ID:</strong> ${playerState.id}<br>
+                <strong>Position:</strong> (${playerState.position.x.toFixed(2)}, ${playerState.position.y.toFixed(2)}, ${playerState.position.z.toFixed(2)})<br>
+                <strong>Animation:</strong> ${playerState.animationState}<br>
+                <strong>Skin:</strong> ${playerState.skin}
+            `;
+        }
+
+        function connect() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                log("Already connected");
+                return;
+            }
+
+            const playerId = document.getElementById('playerId').value;
+            const skin = document.getElementById('skin').value;
+
+            if (!playerId) {
+                log("Player ID required");
+                return;
+            }
+
+            playerState.id = playerId;
+            playerState.skin = skin;
+            updatePlayerState();
+
+            ws = new WebSocket('ws://localhost:8080/ws?world=theater');
+
+            ws.onopen = function() {
+                log("WebSocket connected");
+                updateStatus(true);
+                
+                // Send initial player data
+                ws.send(JSON.stringify(playerState));
+                log("Sent initial player data");
+            };
+
+            ws.onmessage = function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+                    
+                    if (data.type === 'disconnect') {
+                        log(`Player ${data.id} disconnected`);
+                    } else if (data.id && data.id !== playerState.id) {
+                        // Another player's update
+                        const pos = data.position || {x: 0, y: 0, z: 0};
+                        const anim = data.animationState || 'unknown';
+                        const skin = data.skin || 'unknown';
+                        log(`Player ${data.id}: pos(${pos.x.toFixed(1)}, ${pos.y.toFixed(1)}, ${pos.z.toFixed(1)}) anim=${anim} skin=${skin}`);
+                    } else if (data.id) {
+                        // Our own player echo (shouldn't happen but just in case)
+                        log(`Echo from server: ${data.animationState}`);
+                    } else {
+                        log(`Other message: ${JSON.stringify(data)}`);
+                    }
+                } catch (e) {
+                    log(`Error parsing message: ${e.message}`);
+                    log(`Raw data: ${event.data}`);
+                }
+            };
+
+            ws.onclose = function() {
+                log("WebSocket disconnected");
+                updateStatus(false);
+                ws = null;
+            };
+
+            ws.onerror = function(error) {
+                log(`WebSocket error: ${error}`);
+                updateStatus(false);
+            };
+        }
+
+        function disconnect() {
+            if (ws) {
+                ws.close();
+                ws = null;
+                updateStatus(false);
+                log("Disconnected from server");
+            }
+        }
+
+        function movePlayer(deltaX, deltaY, deltaZ) {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                log("Not connected to server");
+                return;
+            }
+
+            playerState.position.x += deltaX;
+            playerState.position.y += deltaY;
+            playerState.position.z += deltaZ;
+
+            updatePlayerState();
+            sendPlayerUpdate();
+        }
+
+        function setAnimation(animation) {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                log("Not connected to server");
+                return;
+            }
+
+            playerState.animationState = animation;
+            updatePlayerState();
+            sendPlayerUpdate();
+        }
+
+        function sendPlayerUpdate() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify(playerState));
+                log(`Sent position update: (${playerState.position.x}, ${playerState.position.y}, ${playerState.position.z})`);
+            }
+        }
+
+        // Initialize display
+        updateStatus(false);
+        updatePlayerState();
+    </script>
+</body>
+</html>
