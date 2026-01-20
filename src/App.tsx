@@ -1,9 +1,8 @@
 import UnityGame from '@/components/UnityGame/UnityGame'
 import Footer from './components/Footer'
-
-//import JitsiWrapper from '@/hooks/Jitsi';
 import { useRef, useState, useCallback, useEffect } from 'react'
-import JitsiWrapper from './hooks/Jitsi';
+//import JitsiWrapper from './hooks/Jitsi';
+import BBBWrapper from './components/UnityGame/components/BBB';
 
 
 
@@ -40,7 +39,7 @@ function App() {
         <div className="flex flex-1">
           <div className=" bg-gray-800 text-white flex-1/5 p-4">
             <h1 className="text-xl font-bold mb-4">Conversation</h1>
-            <JitsiWrapper ref={jitsiRef} roomName={roomName} />
+            <BBBWrapper ref={jitsiRef} roomName={roomName} />
           </div> 
 
           <div className=" relative flex-4/5 items-center justify-center bg-gray-100">

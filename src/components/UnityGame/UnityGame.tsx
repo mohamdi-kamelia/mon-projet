@@ -9,7 +9,7 @@ import {
     useUnityConference,
     useUnityFullscreen,
     useUnityMobile,
-    useUnityJitsi,
+    useUnityBBB,
     useUnityLibraryDesk,
     useUnityInitialFocus,
     useUnityNewsStand
@@ -81,7 +81,7 @@ function UnityGame({ onChangeJitsiRoom, conferenceUrl: webConferenceUrl }: Unity
         unityInstance: UNSAFE__unityInstance
     });
 
-    useUnityJitsi({
+    useUnityBBB({
         addEventListener,
         removeEventListener,
         onChangeJitsiRoom
