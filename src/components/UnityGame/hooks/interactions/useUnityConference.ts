@@ -1,9 +1,8 @@
 /**
  * Hook pour gérer les conférences Unity (visioconférence)
  */
-
 import { useState, useCallback, useEffect } from 'react';
-import { UnityInteractionHookProps, ConferenceData } from '../types';
+import type { UnityInteractionHookProps, ConferenceData } from '../types';
 import { useCursorManagement } from '../core/useCursorManagement';
 import { sendUnityMessage, isValidUrl, exposeToWindow } from '../utils/unityHelpers';
 
@@ -12,8 +11,8 @@ interface UseUnityConferenceProps extends UnityInteractionHookProps {
 }
 
 export const useUnityConference = ({
-  addEventListener,
-  removeEventListener,
+  // addEventListener,
+  // removeEventListener,
   isLoaded,
   unityInstance,
   webConferenceUrl

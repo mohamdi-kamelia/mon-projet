@@ -2,7 +2,7 @@
  * Utilitaires pour la gestion de Unity
  */
 
-import { UnityInstance } from '../types';
+import {type  UnityInstance } from '../types';
 
 /**
  * Envoie un message à Unity de manière sécurisée
@@ -98,7 +98,10 @@ export const safeJsonParse = <T>(json: string, fallback: T): T => {
 /**
  * Expose une fonction sur window de manière sécurisée
  */
-export const exposeToWindow = (name: string, func: Function): (() => void) => {
+export const exposeToWindow = <T extends (...args: any[]) => string>(
+    name: string,
+    func: T
+  ): (() => void) => {
   if (typeof window !== 'undefined') {
     (window as any)[name] = func;
   }

@@ -3,7 +3,7 @@
  */
 
 import { useEffect, useRef } from 'react';
-import { CursorManagementProps } from '../types';
+import type { CursorManagementProps } from '../types';
 import { sendUnityMessage, focusUnityCanvas } from '../utils/unityHelpers';
 
 export const useCursorManagement = ({

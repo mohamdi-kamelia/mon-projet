@@ -3,7 +3,7 @@
  */
 
 import { useCallback } from 'react';
-import { UnityInteractionHookProps, LibraryDeskInteractionData } from '../types';
+import type { UnityInteractionHookProps, LibraryDeskInteractionData } from '../types';
 import { useUnityModalInteraction } from '../core/useUnityModalInteraction';
 import { sendUnityMessage, safeJsonParse } from '../utils/unityHelpers';
 

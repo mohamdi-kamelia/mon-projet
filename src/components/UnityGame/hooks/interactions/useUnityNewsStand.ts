@@ -3,7 +3,7 @@
  */
 
 import { useCallback, useEffect } from 'react';
-import { UnityInteractionHookProps, NewsStandInteractionData } from '../types';
+import type { UnityInteractionHookProps, NewsStandInteractionData } from '../types';
 import { useUnityModalInteraction } from '../core/useUnityModalInteraction';
 
 export const useUnityNewsStand = (props: UnityInteractionHookProps) => {

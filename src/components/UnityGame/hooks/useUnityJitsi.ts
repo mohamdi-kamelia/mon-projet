@@ -16,7 +16,7 @@ export const useUnityJitsi = ({
         onChangeJitsiRoom(roomName);
     }, [onChangeJitsiRoom]);
 
-    const handleExitRoom = useCallback(() => {
+    const handleExitRoom = useCallback(() => {a
         onChangeJitsiRoom("");
     }, [onChangeJitsiRoom]);
 

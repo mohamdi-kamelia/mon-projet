@@ -3,7 +3,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { BaseUnityHookProps } from '../types';
+import type{ BaseUnityHookProps } from '../types';
 import { sendUnityMessage } from '../utils/unityHelpers';
 
 export const useUnityMobile = ({ isLoaded, unityInstance }: BaseUnityHookProps) => {

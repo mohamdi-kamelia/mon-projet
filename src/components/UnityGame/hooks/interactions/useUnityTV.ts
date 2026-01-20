@@ -2,7 +2,7 @@
  * Hook pour l'interaction avec les TVs Unity
  */
 
-import { UnityInteractionHookProps } from '../types';
+import type { UnityInteractionHookProps } from '../types';
 import { useUnityModalInteraction } from '../core/useUnityModalInteraction';
 import { convertToYouTubeEmbed } from '../utils/unityHelpers';
 

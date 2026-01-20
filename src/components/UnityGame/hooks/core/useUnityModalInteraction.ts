@@ -4,7 +4,7 @@
  */
 
 import { useState, useCallback, useEffect } from 'react';
-import { UnityInteractionHookProps, ModalState } from '../types';
+import type { UnityInteractionHookProps, ModalState } from '../types';
 import { useCursorManagement } from '../core/useCursorManagement';
 import { sendUnityMessage, exposeToWindow } from '../utils/unityHelpers';
 

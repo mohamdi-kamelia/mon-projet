@@ -2,7 +2,7 @@
  * Hook pour l'interaction avec les panneaux/signs Unity
  */
 
-import { UnityInteractionHookProps, SignInteractionData } from '../types';
+import type { UnityInteractionHookProps,  SignInteractionData } from '../types';
 import { useUnityModalInteraction } from '../core/useUnityModalInteraction';
 
 export const useUnitySign = (props: UnityInteractionHookProps) => {
