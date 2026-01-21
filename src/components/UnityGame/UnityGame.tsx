@@ -1,6 +1,5 @@
-// UnityGame.tsx - COMPLETE WITH CURSOR MANAGEMENT
 import { Unity, useUnityContext } from 'react-unity-webgl';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 // Custom hooks
 import {
@@ -34,7 +33,7 @@ interface UnityGameProps {
 function UnityGame({ onChangeJitsiRoom, conferenceUrl: webConferenceUrl }: UnityGameProps) {
     // Unity context setup
     //const baseUnity = "https://mam-virtuelle.s3.fr-par.scw.cloud/UnityBuild/Build/";
-    const baseUnity = "/UnityBuild/Build/"; // Use this for local builds
+    const baseUnity = "/UnityBuild/Build/";
     const buildName = "UnityBuild";
     
     const { 
@@ -51,7 +50,9 @@ function UnityGame({ onChangeJitsiRoom, conferenceUrl: webConferenceUrl }: Unity
         codeUrl: baseUnity + buildName + ".wasm",
     });
 
-    // Custom hooks - all modal and interaction logic extracted
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    // Custom hooks
     const tvModal = useUnityTV({
         addEventListener,
         removeEventListener,
@@ -101,10 +102,9 @@ function UnityGame({ onChangeJitsiRoom, conferenceUrl: webConferenceUrl }: Unity
         unityInstance: UNSAFE__unityInstance
     });
 
-    // Automatically focus Unity canvas on initial load
     useUnityInitialFocus({ isLoaded });
 
-    // Expose Unity instance globally for NameModal and other components
+    // Expose Unity instance globally
     useEffect(() => {
         if (isLoaded && UNSAFE__unityInstance) {
             (window as any).UNSAFE__unityInstance = UNSAFE__unityInstance;
@@ -112,10 +112,61 @@ function UnityGame({ onChangeJitsiRoom, conferenceUrl: webConferenceUrl }: Unity
         }
     }, [isLoaded, UNSAFE__unityInstance]);
 
+    useEffect(() => {
+        if (!isLoaded) return;
+
+        const canvas = document.getElementById('unity-canvas') as HTMLCanvasElement;
+        const container = containerRef.current;
+        
+        if (!canvas || !container) {
+            console.warn("Canvas or container not found");
+            return;
+        }
+
+        console.log("Unity 6 Fix: Setting up auto-resize for canvas");
+
+        const resizeCanvas = () => {
+            const rect = container.getBoundingClientRect();
+            console.log(`Resizing canvas to: ${rect.width}x${rect.height}`);
+            
+            canvas.style.width = '100%';
+            canvas.style.height = '100%';
+            
+            // Forcer le recalcul
+            canvas.width = Math.floor(rect.width);
+            canvas.height = Math.floor(rect.height);
+            
+            // Notifier Unity du changement de taille
+            if (UNSAFE__unityInstance) {
+                try {
+                    UNSAFE__unityInstance.SendMessage(
+                        'Canvas',
+                        'OnResize',
+                        `${rect.width},${rect.height}`
+                    );
+                } catch (e) {
+                    // Ignore si la méthode n'existe pas dans Unity
+                }
+            }
+        };
+
+        resizeCanvas();
+        const timeoutId = setTimeout(resizeCanvas, 100);
+        const resizeObserver = new ResizeObserver(() => {
+            resizeCanvas();
+        });
+        resizeObserver.observe(container);
+        window.addEventListener('resize', resizeCanvas);
+        return () => {
+            clearTimeout(timeoutId);
+            resizeObserver.disconnect();
+            window.removeEventListener('resize', resizeCanvas);
+        };
+    }, [isLoaded, UNSAFE__unityInstance]);
+
     return (
-        <div className="flex flex-col place-self-center bg-gradient-to-br from-[#212952] to-[#a9bcdb] bg-[url(/images/header_background.png)] bg-cover h-full w-full">
-            {/* Header */}
-            <div className='py-2 w-full flex items-center px-4'>
+        <div className="w-full h-full flex flex-col bg-gradient-to-br from-[#212952] to-[#a9bcdb] bg-[url(/images/header_background.png)] bg-cover">
+            <div className='py-2 w-full flex items-center px-4 flex-shrink-0'>
                 <div className='w-full'>
                     <h3 className='text-lg text-SecondaryGreenMAM text-center'>
                         Bienvenue dans la Maison des Mathématiques Virtuelles !
@@ -123,23 +174,23 @@ function UnityGame({ onChangeJitsiRoom, conferenceUrl: webConferenceUrl }: Unity
                 </div>
             </div>
 
-            {/* Loading screen */}
             {!isLoaded && <LoadingScreen progress={loadingProgression} />}
 
-            {/* Unity container */}
             <div
-                ref={fullscreen.containerRef}
-                className={`relative flex-grow ${!isLoaded ? "hidden" : "block"}`}
+                ref={containerRef}
+                className={`relative flex-1 w-full min-h-0 ${!isLoaded ? "hidden" : "block"}`}
             >
-                {/* Unity canvas */}
                 <Unity
                     id="unity-canvas"
                     unityProvider={unityProvider}
-                    className="absolute inset-0 w-full h-full"
+                    style={{
+                        width: '100%',
+                        height: '100%',
+                        display: 'block'
+                    }}
                     tabIndex={0}
                 />
 
-                {/* TV Modal */}
                 <TVModal {...tvModal} />
 
                 {/* Sign Modal */}

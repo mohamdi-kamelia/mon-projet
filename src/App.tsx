@@ -36,13 +36,15 @@ function App() {
   return (
     <>
       <div className="flex flex-col min-h-screen">
-        <div className="flex flex-1">
-          <div className=" bg-gray-800 text-white flex-1/5 p-4">
+        <div className="flex flex-1 min-h-0">
+          {/* Panneau BBB à gauche - LARGEUR FIXE */}
+          <div className="w-80 bg-gray-800 text-white p-4 flex-shrink-0">
             <h1 className="text-xl font-bold mb-4">Conversation</h1>
             <BBBWrapper ref={jitsiRef} roomName={roomName} />
           </div> 
 
-          <div className=" relative flex-4/5 items-center justify-center bg-gray-100">
+          {/* Unity à droite - PREND TOUTE LA LARGEUR RESTANTE */}
+          <div className="flex-1 min-w-0 relative bg-gray-100">
             <UnityGame 
               onChangeJitsiRoom={handleChangeRoom}
               conferenceUrl={"https://stream.warlockproduction.fr/hls/live/mamvirtuelle/index.m3u8"}
@@ -50,7 +52,8 @@ function App() {
           </div>
         </div>
 
-         <footer className="w-full bg-gray-900 text-white">
+        {/* Footer en bas */}
+        <footer className="w-full bg-gray-900 text-white flex-shrink-0">
           <Footer
             onMute={() => { return jitsiRef.current?.toggleAudio() }}
             onVideo={() => { return jitsiRef.current?.toggleVideo() }}
@@ -72,4 +75,3 @@ function App() {
 }
 
 export default App
-
