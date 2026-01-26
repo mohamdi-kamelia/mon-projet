@@ -37,13 +37,12 @@ function App() {
     <>
       <div className="flex flex-col min-h-screen">
         <div className="flex flex-1 min-h-0">
-          {/* Panneau BBB à gauche - LARGEUR FIXE */}
-          <div className="w-80 bg-gray-800 text-white p-4 flex-shrink-0">
-            <h1 className="text-xl font-bold mb-4">Conversation</h1>
+          {/* <div className="w-80 bg-gray-800 text-white p-4 flex-shrink-0"> */}
+          <div>
+            {/* <h1 className="text-xl font-bold mb-4">Conversation</h1> */}
             <BBBWrapper ref={jitsiRef} roomName={roomName} />
           </div> 
 
-          {/* Unity à droite - PREND TOUTE LA LARGEUR RESTANTE */}
           <div className="flex-1 min-w-0 relative bg-gray-100">
             <UnityGame 
               onChangeJitsiRoom={handleChangeRoom}

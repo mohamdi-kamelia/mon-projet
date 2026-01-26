@@ -25,6 +25,8 @@ import {
     NewsStandModal
 } from './components';
 
+import BBBWrapper from './components/BBB';
+
 interface UnityGameProps {
     onChangeJitsiRoom: (newRoom: string) => void;
     conferenceUrl?: string;
@@ -51,6 +53,7 @@ function UnityGame({ onChangeJitsiRoom, conferenceUrl: webConferenceUrl }: Unity
     });
 
     const containerRef = useRef<HTMLDivElement>(null);
+    const bbbRef = useRef<any>(null);
 
     // Custom hooks
     const tvModal = useUnityTV({
@@ -82,7 +85,7 @@ function UnityGame({ onChangeJitsiRoom, conferenceUrl: webConferenceUrl }: Unity
         unityInstance: UNSAFE__unityInstance
     });
 
-    useUnityBBB({
+    const { roomName } = useUnityBBB({
         addEventListener,
         removeEventListener,
         onChangeJitsiRoom
@@ -204,6 +207,11 @@ function UnityGame({ onChangeJitsiRoom, conferenceUrl: webConferenceUrl }: Unity
 
                 {/* News Stand Modal */}
                 <NewsStandModal {...newsStandModal} />
+
+                <BBBWrapper 
+                    ref={bbbRef}
+                    roomName={roomName}
+                />
 
                 {/* Fullscreen button */}
                 {isLoaded && !conference.isFullscreen && (

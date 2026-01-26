@@ -5,16 +5,21 @@ interface BBBWrapperProps {
 }
 
 /**
- * Composant BBB - Version POPUP WINDOW
- * Ouvre BBB dans une nouvelle fenêtre au lieu d'un iframe
+ * Composant BBB - Version PLAYER FLOTTANT
+ * Affiche BBB dans un player redimensionnable par-dessus Unity
  */
 const BBBWrapper = forwardRef(({ roomName }: BBBWrapperProps, ref) => {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
-  const [bbbWindow, setBbbWindow] = useState<Window | null>(null);
+  const [bbbUrl, setBbbUrl] = useState<string>("");
   const [isInMeeting, setIsInMeeting] = useState<boolean>(false);
+  const [isMinimized, setIsMinimized] = useState<boolean>(false);
+  const [position, setPosition] = useState({ x: 20, y: 20 });
+  const [size, setSize] = useState({ width: 800, height: 600 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
+  const dragStartPos = useRef({ x: 0, y: 0 });
 
-  // États compatibles avec Jitsi
   const [isMuted, setIsMuted] = useState(false);
   const [isCameraMuted, setIsCameraMuted] = useState(true);
   const [selectedAudioInput, setSelectedAudioInput] = useState<string>("");
@@ -28,6 +33,7 @@ const BBBWrapper = forwardRef(({ roomName }: BBBWrapperProps, ref) => {
       setLoading(false);
       setError("");
       setIsInMeeting(false);
+      setBbbUrl("");
       return;
     }
 
@@ -54,36 +60,9 @@ const BBBWrapper = forwardRef(({ roomName }: BBBWrapperProps, ref) => {
       const data = await response.json();
 
       if (data.success && data.url) {
-        // ✅ Ouvrir BBB dans une NOUVELLE FENÊTRE
-        const width = 1200;
-        const height = 800;
-        const left = (window.screen.width - width) / 2;
-        const top = (window.screen.height - height) / 2;
-        
-        const popup = window.open(
-          data.url,
-          'BBB_Meeting',
-          `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no,location=no`
-        );
-
-        if (popup) {
-          setBbbWindow(popup);
-          setIsInMeeting(true);
-          setLoading(false);
-
-          // Surveiller la fermeture de la fenêtre
-          const checkClosed = setInterval(() => {
-            if (popup.closed) {
-              clearInterval(checkClosed);
-              setBbbWindow(null);
-              setIsInMeeting(false);
-              console.log("Fenêtre BBB fermée");
-            }
-          }, 1000);
-        } else {
-          setError("Popup bloquée ! Autorise les popups pour ce site.");
-          setLoading(false);
-        }
+        setBbbUrl(data.url);
+        setIsInMeeting(true);
+        setLoading(false);
       } else {
         setError(data.error || "Impossible de rejoindre la réunion");
         setLoading(false);
@@ -96,16 +75,49 @@ const BBBWrapper = forwardRef(({ roomName }: BBBWrapperProps, ref) => {
   };
 
   const leaveRoom = () => {
-    if (bbbWindow && !bbbWindow.closed) {
-      bbbWindow.close();
-    }
-    setBbbWindow(null);
+    setBbbUrl("");
     setIsInMeeting(false);
+    setIsMinimized(false);
     setError("");
     setLoading(false);
   };
 
-  // Méthodes de compatibilité Jitsi
+  // Gestion du drag
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest('.bbb-resize-handle')) return;
+    setIsDragging(true);
+    dragStartPos.current = {
+      x: e.clientX - position.x,
+      y: e.clientY - position.y
+    };
+  };
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (isDragging) {
+      setPosition({
+        x: e.clientX - dragStartPos.current.x,
+        y: e.clientY - dragStartPos.current.y
+      });
+    }
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+    setIsResizing(false);
+  };
+
+  useEffect(() => {
+    if (isDragging || isResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [isDragging, isResizing]);
+
+  // Méthodes de compatibilité
   const toggleAudio = () => {
     console.warn("toggleAudio: Non supporté avec BBB.");
     setIsMuted(!isMuted);
@@ -133,11 +145,9 @@ const BBBWrapper = forwardRef(({ roomName }: BBBWrapperProps, ref) => {
   };
 
   const userNameChange = (newUserName: string) => {
-    console.warn("userNameChange: Non supporté avec BBB après connexion.");
     setUserName(newUserName);
   };
 
-  // Nouvelles méthodes BBB
   const muteAllUsers = async () => {
     if (!roomName) return false;
     try {
@@ -207,110 +217,217 @@ const BBBWrapper = forwardRef(({ roomName }: BBBWrapperProps, ref) => {
     } else {
       leaveRoom();
     }
-
-    return () => {
-      if (bbbWindow && !bbbWindow.closed) {
-        bbbWindow.close();
-      }
-    };
   }, [roomName]);
 
-  // UI
-  if (loading) {
+  // Ne rien afficher si pas de réunion active
+  if (!isInMeeting || !bbbUrl) {
+    return null;
+  }
+
+  // Mode minimisé
+  if (isMinimized) {
     return (
-      <div className="pb-5" style={{
-        width: "100%", height: "100%", display: "flex",
-        alignItems: "center", justifyContent: "center",
-        backgroundColor: "#f0f0f0", zIndex: 50
-      }}>
-        <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: "48px", marginBottom: "16px" }}>⏳</div>
-          <p style={{ fontSize: "16px", color: "#666" }}>
-            Ouverture de la fenêtre BBB...
-          </p>
-        </div>
+      <div
+        style={{
+          position: 'fixed',
+          bottom: '20px',
+          right: '20px',
+          backgroundColor: '#1976d2',
+          color: 'white',
+          padding: '12px 20px',
+          borderRadius: '8px',
+          cursor: 'pointer',
+          zIndex: 9999,
+          boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px'
+        }}
+        onClick={() => setIsMinimized(false)}
+      >
+        <span style={{ fontSize: '20px' }}>💬</span>
+        <span style={{ fontWeight: 'bold' }}>Réunion BBB en cours</span>
       </div>
     );
   }
 
-  if (error) {
-    return (
-      <div className="pb-5" style={{
-        width: "100%", height: "100%", display: "flex",
-        alignItems: "center", justifyContent: "center",
-        backgroundColor: "#ffebee", zIndex: 50
-      }}>
-        <div style={{ textAlign: "center", padding: "20px" }}>
-          <div style={{ fontSize: "48px", marginBottom: "16px" }}>⚠️</div>
-          <p style={{ fontSize: "18px", color: "#c62828", fontWeight: "bold" }}>
-            Erreur
-          </p>
-          <p style={{ fontSize: "14px", color: "#666", marginTop: "8px" }}>
-            {error}
-          </p>
-          {error.includes("Popup") && (
-            <p style={{ fontSize: "12px", color: "#999", marginTop: "8px" }}>
-              💡 Astuce : Autorise les popups dans les paramètres de ton navigateur
-            </p>
-          )}
-          <button
-            onClick={() => joinRoom(roomName)}
-            style={{
-              marginTop: "16px", padding: "10px 20px",
-              backgroundColor: "#2196F3", color: "white",
-              border: "none", borderRadius: "4px",
-              cursor: "pointer", fontSize: "14px"
-            }}
-          >
-            🔄 Réessayer
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (isInMeeting) {
-    return (
-      <div className="pb-5" style={{
-        width: "100%", height: "100%", display: "flex",
-        alignItems: "center", justifyContent: "center",
-        backgroundColor: "#e3f2fd", zIndex: 50
-      }}>
-        <div style={{ textAlign: "center", padding: "40px" }}>
-          <div style={{ fontSize: "64px", marginBottom: "24px" }}>💬</div>
-          <p style={{ fontSize: "20px", color: "#1976d2", fontWeight: "bold", marginBottom: "16px" }}>
-            Réunion en cours
-          </p>
-          <p style={{ fontSize: "14px", color: "#666", marginBottom: "24px" }}>
-            La réunion BBB est ouverte dans une autre fenêtre
-          </p>
-          <button
-            onClick={leaveRoom}
-            style={{
-              padding: "12px 24px",
-              backgroundColor: "#f44336",
-              color: "white",
-              border: "none",
-              borderRadius: "4px",
-              cursor: "pointer",
-              fontSize: "16px",
-              fontWeight: "bold"
-            }}
-          >
-            🚪 Quitter la réunion
-          </button>
-        </div>
-      </div>
-    );
-  }
-
+  // Player flottant
   return (
-    <div className="pb-5" style={{
-      width: "100%", height: "100%", display: "flex",
-      alignItems: "center", justifyContent: "center",
-      backgroundColor: "#f5f5f5", zIndex: 50
-    }}>
-      <p style={{ color: "#999" }}>En attente d'une salle...</p>
+    <div
+      style={{
+        position: 'fixed',
+        left: `${position.x}px`,
+        top: `${position.y}px`,
+        width: `${size.width}px`,
+        height: `${size.height}px`,
+        backgroundColor: '#fff',
+        borderRadius: '8px',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+        zIndex: 9999,
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+        border: '2px solid #1976d2'
+      }}
+    >
+      {/* Barre de titre */}
+      <div
+        onMouseDown={handleMouseDown}
+        style={{
+          backgroundColor: '#1976d2',
+          color: 'white',
+          padding: '10px 15px',
+          cursor: isDragging ? 'grabbing' : 'grab',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          userSelect: 'none'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span style={{ fontSize: '20px' }}>💬</span>
+          <span style={{ fontWeight: 'bold' }}>Réunion BBB</span>
+        </div>
+        
+        <div style={{ display: 'flex', gap: '8px' }}>
+          {/* Bouton minimiser */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsMinimized(true);
+            }}
+            style={{
+              background: 'rgba(255,255,255,0.2)',
+              border: 'none',
+              color: 'white',
+              width: '28px',
+              height: '28px',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '16px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+            title="Minimiser"
+          >
+            −
+          </button>
+          
+          {/* Bouton quitter */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              leaveRoom();
+            }}
+            style={{
+              background: '#f44336',
+              border: 'none',
+              color: 'white',
+              width: '28px',
+              height: '28px',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '16px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+            title="Quitter"
+          >
+            ✕
+          </button>
+        </div>
+      </div>
+
+      {/* Contenu iframe */}
+      <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+        {loading ? (
+          <div style={{
+            width: '100%', height: '100%', display: 'flex',
+            alignItems: 'center', justifyContent: 'center',
+            backgroundColor: '#f0f0f0'
+          }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '48px', marginBottom: '16px' }}>⏳</div>
+              <p>Connexion...</p>
+            </div>
+          </div>
+        ) : error ? (
+          <div style={{
+            width: '100%', height: '100%', display: 'flex',
+            alignItems: 'center', justifyContent: 'center',
+            backgroundColor: '#ffebee', padding: '20px'
+          }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '48px', marginBottom: '16px' }}>⚠️</div>
+              <p style={{ color: '#c62828', marginBottom: '16px' }}>{error}</p>
+              <button
+                onClick={() => joinRoom(roomName)}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: '#2196F3',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer'
+                }}
+              >
+                Réessayer
+              </button>
+            </div>
+          </div>
+        ) : (
+          <iframe
+            src={bbbUrl}
+            allow="camera; microphone; fullscreen; display-capture; autoplay"
+            style={{
+              width: '100%',
+              height: '100%',
+              border: 'none'
+            }}
+            title="BigBlueButton Meeting"
+          />
+        )}
+      </div>
+
+      {/* Poignée de redimensionnement */}
+      <div
+        className="bbb-resize-handle"
+        onMouseDown={(e) => {
+          e.preventDefault();
+          setIsResizing(true);
+          const startX = e.clientX;
+          const startY = e.clientY;
+          const startWidth = size.width;
+          const startHeight = size.height;
+
+          const handleResize = (e: MouseEvent) => {
+            const newWidth = Math.max(400, startWidth + (e.clientX - startX));
+            const newHeight = Math.max(300, startHeight + (e.clientY - startY));
+            setSize({ width: newWidth, height: newHeight });
+          };
+
+          const handleResizeEnd = () => {
+            setIsResizing(false);
+            document.removeEventListener('mousemove', handleResize);
+            document.removeEventListener('mouseup', handleResizeEnd);
+          };
+
+          document.addEventListener('mousemove', handleResize);
+          document.addEventListener('mouseup', handleResizeEnd);
+        }}
+        style={{
+          position: 'absolute',
+          bottom: 0,
+          right: 0,
+          width: '20px',
+          height: '20px',
+          cursor: 'nwse-resize',
+          backgroundColor: '#1976d2',
+          borderTopLeftRadius: '4px'
+        }}
+      />
     </div>
   );
 });

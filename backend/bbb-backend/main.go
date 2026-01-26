@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
@@ -46,6 +47,16 @@ func main() {
 		log.Fatal("BBB_URL et BBB_SECRET doivent être définis dans .env")
 	}
 
+	// ✅ Nettoyer l'URL BBB pour supporter les deux formats :
+	// Format 1: https://bbb.atelier.ovh
+	// Format 2: https://bbb.atelier.ovh/bigbluebutton
+	bbbURL = strings.TrimSuffix(bbbURL, "/bigbluebutton")
+	bbbURL = strings.TrimSuffix(bbbURL, "/")
+	
+	log.Printf("🔧 BBB URL nettoyée: %s", bbbURL)
+	log.Printf("🔧 Les URLs générées utiliseront: %s/bigbluebutton/api/...", bbbURL)
+	log.Printf("🔐 BBB Secret configuré: %s", maskSecret(bbbSecret))
+
 	router := mux.NewRouter()
 
 	// Routes
@@ -58,7 +69,7 @@ func main() {
 
 	// CORS
 	c := cors.New(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:3000", "http://localhost:5173"}, // Ajoute tes domaines
+		AllowedOrigins:   []string{"*"}, // En production, remplace par tes domaines spécifiques
 		AllowedMethods:   []string{"GET", "POST", "OPTIONS"},
 		AllowedHeaders:   []string{"Content-Type"},
 		AllowCredentials: true,
@@ -73,6 +84,13 @@ func main() {
 
 	log.Printf("🚀 Serveur BBB backend démarré sur le port %s", port)
 	log.Fatal(http.ListenAndServe(":"+port, handler))
+}
+
+func maskSecret(secret string) string {
+	if len(secret) <= 4 {
+		return "****"
+	}
+	return secret[:4] + "****"
 }
 
 func handleHealth(w http.ResponseWriter, r *http.Request) {
@@ -93,6 +111,8 @@ func handleJoinMeeting(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Printf("📥 Demande de connexion: MeetingID=%s, User=%s, Moderator=%v", req.MeetingID, req.UserName, req.IsModerator)
+
 	// 1. Créer la réunion (si elle n'existe pas déjà, BBB ignore les doublons)
 	createURL, err := createMeeting(req.MeetingID)
 	if err != nil {
@@ -101,7 +121,7 @@ func handleJoinMeeting(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("📝 Create meeting URL: %s", createURL)
+	log.Printf("🔗 Create meeting URL: %s", createURL)
 
 	// ✅ IMPORTANT : Appeler l'API BBB pour VRAIMENT créer la réunion
 	createResp, err := http.Get(createURL)
@@ -117,9 +137,15 @@ func handleJoinMeeting(w http.ResponseWriter, r *http.Request) {
 	log.Printf("✅ BBB create response status: %d", createResp.StatusCode)
 	log.Printf("📄 BBB create response: %s", string(body))
 
+	if createResp.StatusCode != 200 {
+		log.Printf("❌ BBB a retourné une erreur: %d", createResp.StatusCode)
+		respondError(w, fmt.Sprintf("BBB server error: %d", createResp.StatusCode), http.StatusInternalServerError)
+		return
+	}
+
 	// 2. Générer le lien de participation
 	joinURL := generateJoinURL(req.MeetingID, req.UserName, req.IsModerator)
-	log.Printf("🔗 Join URL: %s", joinURL)
+	log.Printf("🔗 Join URL généré: %s", joinURL)
 
 	// 3. Retourner le lien
 	json.NewEncoder(w).Encode(JoinResponse{
@@ -154,13 +180,14 @@ func createMeeting(meetingID string) (string, error) {
 	// Enregistrement
 	params.Set("record", "false")                 // true = enregistrer
 	params.Set("autoStartRecording", "false")     // true = démarre automatiquement
-	params.Set("allowStartStopRecording", "true") // true = permet contrôle enregistrement
+	params.Set("allowStartStopRecording", "true") // permet contrôle enregistrement
 
 	apiCall := "create"
 	queryString := params.Encode()
 	checksum := calculateChecksum(apiCall + queryString + bbbSecret)
 
-	return fmt.Sprintf("%s/api/%s?%s&checksum=%s", bbbURL, apiCall, queryString, checksum), nil
+	// ✅ URL correcte avec /bigbluebutton/api
+	return fmt.Sprintf("%s/bigbluebutton/api/%s?%s&checksum=%s", bbbURL, apiCall, queryString, checksum), nil
 }
 
 func generateJoinURL(meetingID, userName string, isModerator bool) string {
@@ -181,7 +208,8 @@ func generateJoinURL(meetingID, userName string, isModerator bool) string {
 	queryString := params.Encode()
 	checksum := calculateChecksum(apiCall + queryString + bbbSecret)
 
-	return fmt.Sprintf("%s/api/%s?%s&checksum=%s", bbbURL, apiCall, queryString, checksum)
+	// ✅ URL correcte avec /bigbluebutton/api
+	return fmt.Sprintf("%s/bigbluebutton/api/%s?%s&checksum=%s", bbbURL, apiCall, queryString, checksum)
 }
 
 func calculateChecksum(data string) string {
@@ -216,7 +244,7 @@ func handleMuteAll(w http.ResponseWriter, r *http.Request) {
 	queryString := params.Encode()
 	checksum := calculateChecksum(apiCall + queryString + bbbSecret)
 
-	muteURL := fmt.Sprintf("%s/api/%s?%s&checksum=%s", bbbURL, apiCall, queryString, checksum)
+	muteURL := fmt.Sprintf("%s/bigbluebutton/api/%s?%s&checksum=%s", bbbURL, apiCall, queryString, checksum)
 
 	resp, err := http.Get(muteURL)
 	if err != nil {
@@ -248,7 +276,7 @@ func handleMuteUser(w http.ResponseWriter, r *http.Request) {
 	queryString := params.Encode()
 	checksum := calculateChecksum(apiCall + queryString + bbbSecret)
 
-	muteURL := fmt.Sprintf("%s/api/%s?%s&checksum=%s", bbbURL, apiCall, queryString, checksum)
+	muteURL := fmt.Sprintf("%s/bigbluebutton/api/%s?%s&checksum=%s", bbbURL, apiCall, queryString, checksum)
 
 	resp, err := http.Get(muteURL)
 	if err != nil {
@@ -280,7 +308,7 @@ func handleEjectUser(w http.ResponseWriter, r *http.Request) {
 	queryString := params.Encode()
 	checksum := calculateChecksum(apiCall + queryString + bbbSecret)
 
-	ejectURL := fmt.Sprintf("%s/api/%s?%s&checksum=%s", bbbURL, apiCall, queryString, checksum)
+	ejectURL := fmt.Sprintf("%s/bigbluebutton/api/%s?%s&checksum=%s", bbbURL, apiCall, queryString, checksum)
 
 	resp, err := http.Get(ejectURL)
 	if err != nil {
@@ -308,7 +336,7 @@ func handleGetParticipants(w http.ResponseWriter, r *http.Request) {
 	queryString := params.Encode()
 	checksum := calculateChecksum(apiCall + queryString + bbbSecret)
 
-	infoURL := fmt.Sprintf("%s/api/%s?%s&checksum=%s", bbbURL, apiCall, queryString, checksum)
+	infoURL := fmt.Sprintf("%s/bigbluebutton/api/%s?%s&checksum=%s", bbbURL, apiCall, queryString, checksum)
 
 	resp, err := http.Get(infoURL)
 	if err != nil {
