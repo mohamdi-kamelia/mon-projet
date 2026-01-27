@@ -5,20 +5,20 @@ interface BBBWrapperProps {
 }
 
 /**
- * Composant BBB - Version PLAYER FLOTTANT
- * Affiche BBB dans un player redimensionnable par-dessus Unity
+ * Composant BBB - Touche Alt pour déplacer (version finale)
  */
 const BBBWrapper = forwardRef(({ roomName }: BBBWrapperProps, ref) => {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
   const [bbbUrl, setBbbUrl] = useState<string>("");
   const [isInMeeting, setIsInMeeting] = useState<boolean>(false);
-  const [isMinimized, setIsMinimized] = useState<boolean>(false);
-  const [position, setPosition] = useState({ x: 20, y: 20 });
-  const [size, setSize] = useState({ width: 800, height: 600 });
+  const [position, setPosition] = useState({ x: 50, y: 50 });
+  const [size, setSize] = useState({ width: 700, height: 500 });
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
+  const [isAltPressed, setIsAltPressed] = useState(false);
   const dragStartPos = useRef({ x: 0, y: 0 });
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const [isMuted, setIsMuted] = useState(false);
   const [isCameraMuted, setIsCameraMuted] = useState(true);
@@ -77,19 +77,43 @@ const BBBWrapper = forwardRef(({ roomName }: BBBWrapperProps, ref) => {
   const leaveRoom = () => {
     setBbbUrl("");
     setIsInMeeting(false);
-    setIsMinimized(false);
     setError("");
     setLoading(false);
   };
 
+  // Détecter la touche Alt
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Alt') {
+        setIsAltPressed(true);
+        e.preventDefault();
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'Alt') {
+        setIsAltPressed(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, []);
+
   // Gestion du drag
   const handleMouseDown = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest('.bbb-resize-handle')) return;
+    if (!isAltPressed) return;
     setIsDragging(true);
     dragStartPos.current = {
       x: e.clientX - position.x,
       y: e.clientY - position.y
     };
+    e.preventDefault();
   };
 
   const handleMouseMove = (e: MouseEvent) => {
@@ -118,35 +142,12 @@ const BBBWrapper = forwardRef(({ roomName }: BBBWrapperProps, ref) => {
   }, [isDragging, isResizing]);
 
   // Méthodes de compatibilité
-  const toggleAudio = () => {
-    console.warn("toggleAudio: Non supporté avec BBB.");
-    setIsMuted(!isMuted);
-    return !isMuted;
-  };
-
-  const toggleVideo = () => {
-    console.warn("toggleVideo: Non supporté avec BBB.");
-    setIsCameraMuted(!isCameraMuted);
-    return !isCameraMuted;
-  };
-
-  const toggleShareScreen = () => {
-    console.warn("toggleShareScreen: Non supporté avec BBB.");
-  };
-
-  const setAudioInput = (deviceName: string) => {
-    console.warn("setAudioInput: Non supporté avec BBB.");
-    setSelectedAudioInput(deviceName);
-  };
-
-  const setVideoInput = (deviceName: string) => {
-    console.warn("setVideoInput: Non supporté avec BBB.");
-    setSelectedVideoInput(deviceName);
-  };
-
-  const userNameChange = (newUserName: string) => {
-    setUserName(newUserName);
-  };
+  const toggleAudio = () => { setIsMuted(!isMuted); return !isMuted; };
+  const toggleVideo = () => { setIsCameraMuted(!isCameraMuted); return !isCameraMuted; };
+  const toggleShareScreen = () => {};
+  const setAudioInput = (deviceName: string) => { setSelectedAudioInput(deviceName); };
+  const setVideoInput = (deviceName: string) => { setSelectedVideoInput(deviceName); };
+  const userNameChange = (newUserName: string) => { setUserName(newUserName); };
 
   const muteAllUsers = async () => {
     if (!roomName) return false;
@@ -158,10 +159,7 @@ const BBBWrapper = forwardRef(({ roomName }: BBBWrapperProps, ref) => {
       });
       const data = await response.json();
       return data.success;
-    } catch (err) {
-      console.error("Erreur mute all:", err);
-      return false;
-    }
+    } catch (err) { return false; }
   };
 
   const muteUser = async (userID: string) => {
@@ -174,10 +172,7 @@ const BBBWrapper = forwardRef(({ roomName }: BBBWrapperProps, ref) => {
       });
       const data = await response.json();
       return data.success;
-    } catch (err) {
-      console.error("Erreur mute user:", err);
-      return false;
-    }
+    } catch (err) { return false; }
   };
 
   const ejectUser = async (userID: string) => {
@@ -190,25 +185,13 @@ const BBBWrapper = forwardRef(({ roomName }: BBBWrapperProps, ref) => {
       });
       const data = await response.json();
       return data.success;
-    } catch (err) {
-      console.error("Erreur eject user:", err);
-      return false;
-    }
+    } catch (err) { return false; }
   };
 
   useImperativeHandle(ref, () => ({
-    joinRoom,
-    leaveRoom,
-    toggleAudio,
-    toggleVideo,
-    toggleShareScreen,
-    setAudioInput,
-    setVideoInput,
-    userNameChange,
-    getApi: () => null,
-    muteAllUsers,
-    muteUser,
-    ejectUser,
+    joinRoom, leaveRoom, toggleAudio, toggleVideo, toggleShareScreen,
+    setAudioInput, setVideoInput, userNameChange, getApi: () => null,
+    muteAllUsers, muteUser, ejectUser,
   }));
 
   useEffect(() => {
@@ -219,193 +202,146 @@ const BBBWrapper = forwardRef(({ roomName }: BBBWrapperProps, ref) => {
     }
   }, [roomName]);
 
-  // Ne rien afficher si pas de réunion active
   if (!isInMeeting || !bbbUrl) {
     return null;
   }
 
-  // Mode minimisé
-  if (isMinimized) {
+  if (loading || error) {
     return (
       <div
         style={{
           position: 'fixed',
-          bottom: '20px',
-          right: '20px',
-          backgroundColor: '#1976d2',
-          color: 'white',
-          padding: '12px 20px',
-          borderRadius: '8px',
-          cursor: 'pointer',
+          left: `${position.x}px`,
+          top: `${position.y}px`,
+          width: `${size.width}px`,
+          height: `${size.height}px`,
+          backgroundColor: 'rgba(0, 0, 0, 0.9)',
+          borderRadius: '12px',
+          boxShadow: '0 10px 40px rgba(0, 0, 0, 0.6)',
           zIndex: 9999,
-          boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
           display: 'flex',
           alignItems: 'center',
-          gap: '10px'
+          justifyContent: 'center'
         }}
-        onClick={() => setIsMinimized(false)}
       >
-        <span style={{ fontSize: '20px' }}>💬</span>
-        <span style={{ fontWeight: 'bold' }}>Réunion BBB en cours</span>
+        <div style={{ textAlign: 'center', color: 'white' }}>
+          {loading ? (
+            <>
+              <div style={{ fontSize: '48px', marginBottom: '16px' }}>⏳</div>
+              <p style={{ fontSize: '16px' }}>Connexion...</p>
+            </>
+          ) : (
+            <>
+              <div style={{ fontSize: '48px', marginBottom: '16px' }}>⚠️</div>
+              <p style={{ fontSize: '16px', marginBottom: '16px' }}>{error}</p>
+              <button
+                onClick={() => joinRoom(roomName)}
+                style={{
+                  padding: '10px 20px',
+                  backgroundColor: '#3b82f6',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontSize: '14px'
+                }}
+              >
+                Réessayer
+              </button>
+            </>
+          )}
+        </div>
       </div>
     );
   }
 
-  // Player flottant
   return (
     <div
+      ref={containerRef}
+      onMouseDown={handleMouseDown}
       style={{
         position: 'fixed',
         left: `${position.x}px`,
         top: `${position.y}px`,
         width: `${size.width}px`,
         height: `${size.height}px`,
-        backgroundColor: '#fff',
-        borderRadius: '8px',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+        borderRadius: '12px',
+        boxShadow: isAltPressed 
+          ? '0 15px 60px rgba(59, 130, 246, 0.6)' 
+          : '0 10px 40px rgba(0, 0, 0, 0.5)',
         zIndex: 9999,
-        display: 'flex',
-        flexDirection: 'column',
         overflow: 'hidden',
-        border: '2px solid #1976d2'
+        border: isAltPressed ? '3px solid #3b82f6' : '2px solid rgba(255, 255, 255, 0.1)',
+        transition: 'box-shadow 0.2s ease, border 0.2s ease'
       }}
     >
-      {/* Barre de titre */}
-      <div
-        onMouseDown={handleMouseDown}
+      {/* Overlay quand Alt pressé */}
+      {isAltPressed && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(59, 130, 246, 0.05)',
+            zIndex: 10001,
+            cursor: isDragging ? 'grabbing' : 'grab',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            pointerEvents: 'none'
+          }}
+        >
+          <div style={{
+            backgroundColor: 'rgba(0, 0, 0, 0.85)',
+            color: 'white',
+            padding: '12px 24px',
+            borderRadius: '8px',
+            fontSize: '14px',
+            fontWeight: '600',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)'
+          }}>
+            {isDragging ? '⋮⋮ Déplacement...' : '⋮⋮ Cliquez et glissez'}
+          </div>
+        </div>
+      )}
+
+      {/* IFRAME BBB */}
+      <iframe
+        src={bbbUrl}
+        allow="camera; microphone; fullscreen; display-capture; autoplay"
         style={{
-          backgroundColor: '#1976d2',
-          color: 'white',
-          padding: '10px 15px',
-          cursor: isDragging ? 'grabbing' : 'grab',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          userSelect: 'none'
+          width: '100%',
+          height: '100%',
+          border: 'none',
+          display: 'block',
+          pointerEvents: isAltPressed ? 'none' : 'auto'
         }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span style={{ fontSize: '20px' }}>💬</span>
-          <span style={{ fontWeight: 'bold' }}>Réunion BBB</span>
-        </div>
-        
-        <div style={{ display: 'flex', gap: '8px' }}>
-          {/* Bouton minimiser */}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsMinimized(true);
-            }}
-            style={{
-              background: 'rgba(255,255,255,0.2)',
-              border: 'none',
-              color: 'white',
-              width: '28px',
-              height: '28px',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontSize: '16px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-            title="Minimiser"
-          >
-            −
-          </button>
-          
-          {/* Bouton quitter */}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              leaveRoom();
-            }}
-            style={{
-              background: '#f44336',
-              border: 'none',
-              color: 'white',
-              width: '28px',
-              height: '28px',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontSize: '16px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-            title="Quitter"
-          >
-            ✕
-          </button>
-        </div>
-      </div>
+        title="BigBlueButton Meeting"
+      />
 
-      {/* Contenu iframe */}
-      <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-        {loading ? (
-          <div style={{
-            width: '100%', height: '100%', display: 'flex',
-            alignItems: 'center', justifyContent: 'center',
-            backgroundColor: '#f0f0f0'
-          }}>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '48px', marginBottom: '16px' }}>⏳</div>
-              <p>Connexion...</p>
-            </div>
-          </div>
-        ) : error ? (
-          <div style={{
-            width: '100%', height: '100%', display: 'flex',
-            alignItems: 'center', justifyContent: 'center',
-            backgroundColor: '#ffebee', padding: '20px'
-          }}>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '48px', marginBottom: '16px' }}>⚠️</div>
-              <p style={{ color: '#c62828', marginBottom: '16px' }}>{error}</p>
-              <button
-                onClick={() => joinRoom(roomName)}
-                style={{
-                  padding: '8px 16px',
-                  backgroundColor: '#2196F3',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer'
-                }}
-              >
-                Réessayer
-              </button>
-            </div>
-          </div>
-        ) : (
-          <iframe
-            src={bbbUrl}
-            allow="camera; microphone; fullscreen; display-capture; autoplay"
-            style={{
-              width: '100%',
-              height: '100%',
-              border: 'none'
-            }}
-            title="BigBlueButton Meeting"
-          />
-        )}
-      </div>
-
-      {/* Poignée de redimensionnement */}
+      {/* Poignée de redimensionnement - À GAUCHE */}
       <div
-        className="bbb-resize-handle"
         onMouseDown={(e) => {
           e.preventDefault();
+          e.stopPropagation();
           setIsResizing(true);
           const startX = e.clientX;
           const startY = e.clientY;
           const startWidth = size.width;
           const startHeight = size.height;
+          const startPosX = position.x;
 
           const handleResize = (e: MouseEvent) => {
-            const newWidth = Math.max(400, startWidth + (e.clientX - startX));
+            const deltaX = e.clientX - startX;
+            const newWidth = Math.max(400, startWidth - deltaX);
             const newHeight = Math.max(300, startHeight + (e.clientY - startY));
+            
+            const newX = startPosX + (startWidth - newWidth);
+            
             setSize({ width: newWidth, height: newHeight });
+            setPosition(prev => ({ ...prev, x: newX }));
           };
 
           const handleResizeEnd = () => {
@@ -420,14 +356,59 @@ const BBBWrapper = forwardRef(({ roomName }: BBBWrapperProps, ref) => {
         style={{
           position: 'absolute',
           bottom: 0,
-          right: 0,
-          width: '20px',
-          height: '20px',
-          cursor: 'nwse-resize',
-          backgroundColor: '#1976d2',
-          borderTopLeftRadius: '4px'
+          left: 0,
+          width: '40px',
+          height: '40px',
+          cursor: 'nesw-resize',
+          backgroundColor: 'rgba(59, 130, 246, 0.8)',
+          borderTopRightRadius: '8px',
+          zIndex: 10002,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          opacity: 0.7,
+          transition: 'all 0.2s ease'
         }}
-      />
+        onMouseEnter={(e) => {
+          e.currentTarget.style.opacity = '1';
+          e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 1)';
+        }}
+        onMouseLeave={(e) => {
+          if (!isResizing) {
+            e.currentTarget.style.opacity = '0.7';
+            e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.8)';
+          }
+        }}
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" style={{ transform: 'scaleX(-1)' }}>
+          <polyline points="15 3 21 3 21 9" />
+          <polyline points="9 21 3 21 3 15" />
+          <line x1="21" y1="3" x2="14" y2="10" />
+          <line x1="3" y1="21" x2="10" y2="14" />
+        </svg>
+      </div>
+
+      {/* Indicateur Alt discret en bas */}
+      {!isAltPressed && !isDragging && (
+        <div style={{
+          position: 'absolute',
+          bottom: '50px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          backgroundColor: 'rgba(0, 0, 0, 0.7)',
+          color: 'white',
+          padding: '6px 12px',
+          borderRadius: '6px',
+          fontSize: '11px',
+          zIndex: 10000,
+          opacity: 0.4,
+          pointerEvents: 'none',
+          whiteSpace: 'nowrap',
+          transition: 'opacity 0.3s ease'
+        }}>
+          Alt + glisser pour déplacer
+        </div>
+      )}
     </div>
   );
 });
