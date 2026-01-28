@@ -14,7 +14,6 @@ const BBBWrapper = forwardRef(({ roomName, userName: userNameProp }: BBBWrapperP
   const [size, setSize] = useState({ width: 700, height: 500 });
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
-  const [isAltPressed, setIsAltPressed] = useState(false);
   const dragStartPos = useRef({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -42,16 +41,16 @@ const BBBWrapper = forwardRef(({ roomName, userName: userNameProp }: BBBWrapperP
     }
 
     if (isJoiningRef.current) {
-      console.log(" Appel joinRoom déjà en cours, ignoré");
+      console.log("🚫 Appel joinRoom déjà en cours, ignoré");
       return;
     }
 
     if (currentRoomRef.current === roomName && hasJoinedRef.current) {
-      console.log(" Déjà dans cette room:", roomName);
+      console.log("🚫 Déjà dans cette room:", roomName);
       return;
     }
 
-    console.log(" Joining BBB room:", roomName);
+    console.log("✅ Joining BBB room:", roomName);
     isJoiningRef.current = true;
     currentRoomRef.current = roomName;
     setLoading(true);
@@ -81,7 +80,7 @@ const BBBWrapper = forwardRef(({ roomName, userName: userNameProp }: BBBWrapperP
         setIsInMeeting(true);
         hasJoinedRef.current = true;
         setLoading(false);
-        console.log(" BBB room joined successfully");
+        console.log("✅ BBB room joined successfully");
       } else {
         setError(data.error || "Impossible de rejoindre la réunion");
         setLoading(false);
@@ -108,44 +107,15 @@ const BBBWrapper = forwardRef(({ roomName, userName: userNameProp }: BBBWrapperP
     hasJoinedRef.current = false;
   };
 
-  // Détecter la touche Alt
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Alt') {
-        console.log("🔑 Alt key pressed!");
-        setIsAltPressed(true);
-        e.preventDefault();
-      }
-    };
-
-    const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.key === 'Alt') {
-        console.log(" Alt key released!");
-        setIsAltPressed(false);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
-    };
-  }, []);
-
-  // Gestion du drag
-  const handleMouseDown = (e: React.MouseEvent) => {
-    console.log(" Mouse down - Alt pressed:", isAltPressed);
-    if (!isAltPressed) return;
-    
-    console.log(" Starting drag");
+  const handleDragMouseDown = (e: React.MouseEvent) => {
+    console.log("🖱️ Drag initiated");
     setIsDragging(true);
     dragStartPos.current = {
       x: e.clientX - position.x,
       y: e.clientY - position.y
     };
     e.preventDefault();
+    e.stopPropagation();
   };
 
   const handleMouseMove = (e: MouseEvent) => {
@@ -159,7 +129,7 @@ const BBBWrapper = forwardRef(({ roomName, userName: userNameProp }: BBBWrapperP
 
   const handleMouseUp = () => {
     if (isDragging) {
-      console.log(" Drag ended");
+      console.log("🛑 Drag ended");
     }
     setIsDragging(false);
     setIsResizing(false);
@@ -182,7 +152,19 @@ const BBBWrapper = forwardRef(({ roomName, userName: userNameProp }: BBBWrapperP
   const toggleShareScreen = () => {};
   const setAudioInput = (deviceName: string) => { setSelectedAudioInput(deviceName); };
   const setVideoInput = (deviceName: string) => { setSelectedVideoInput(deviceName); };
-  const userNameChange = (newUserName: string) => { setUserName(newUserName); };
+  const userNameChange = (newUserName: string) => { 
+    console.log("👤 userNameChange called:", newUserName);
+    setUserName(newUserName);
+    
+    // Si on est déjà dans une réunion, rejoindre avec le nouveau nom
+    if (isInMeeting && roomName) {
+      console.log("🔄 Reconnexion avec le nouveau nom...");
+      hasJoinedRef.current = false;
+      setTimeout(() => {
+        joinRoom(roomName);
+      }, 100);
+    }
+  };
 
   const muteAllUsers = async () => {
     if (!roomName) return false;
@@ -230,7 +212,7 @@ const BBBWrapper = forwardRef(({ roomName, userName: userNameProp }: BBBWrapperP
   }));
 
   useEffect(() => {
-    console.log(" roomName changed:", roomName, "- Current:", currentRoomRef.current);
+    console.log("📢 roomName changed:", roomName, "- Current:", currentRoomRef.current);
     
     if (roomName && roomName !== "") {
       if (currentRoomRef.current !== roomName) {
@@ -313,47 +295,76 @@ const BBBWrapper = forwardRef(({ roomName, userName: userNameProp }: BBBWrapperP
         width: `${size.width}px`,
         height: `${size.height}px`,
         borderRadius: '12px',
-        boxShadow: isAltPressed 
-          ? '0 15px 60px rgba(59, 130, 246, 0.6)' 
-          : '0 10px 40px rgba(0, 0, 0, 0.5)',
+        boxShadow: '0 10px 40px rgba(0, 0, 0, 0.5)',
         zIndex: 9999,
         overflow: 'hidden',
-        border: isAltPressed ? '3px solid #3b82f6' : '2px solid rgba(255, 255, 255, 0.1)',
-        transition: 'box-shadow 0.2s ease, border 0.2s ease'
+        border: '2px solid rgba(255, 255, 255, 0.1)',
+        display: 'flex',
+        flexDirection: 'column'
       }}
     >
-      {isAltPressed && (
-        <div
-          onMouseDown={handleMouseDown}
+      <div
+        onMouseDown={handleDragMouseDown}
+        style={{
+          height: '40px',
+          backgroundColor: '#1f2937',
+          borderTopLeftRadius: '12px',
+          borderTopRightRadius: '12px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '0 12px',
+          cursor: isDragging ? 'grabbing' : 'grab',
+          userSelect: 'none',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+          zIndex: 10003
+        }}
+      >
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          color: 'white',
+          fontSize: '14px',
+          fontWeight: '600'
+        }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+            <line x1="9" y1="9" x2="15" y2="9"/>
+            <line x1="9" y1="15" x2="15" y2="15"/>
+          </svg>
+          BBB Meeting
+        </div>
+        
+        {/* Bouton fermer */}
+        <button
+          onClick={leaveRoom}
           style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(59, 130, 246, 0.05)',
-            zIndex: 10001,
-            cursor: isDragging ? 'grabbing' : 'grab',
+            width: '24px',
+            height: '24px',
+            borderRadius: '4px',
+            border: 'none',
+            backgroundColor: 'transparent',
+            color: 'white',
+            cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            pointerEvents: 'auto'
+            transition: 'background-color 0.2s'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = '#ef4444';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'transparent';
           }}
         >
-          <div style={{
-            backgroundColor: 'rgba(0, 0, 0, 0.85)',
-            color: 'white',
-            padding: '12px 24px',
-            borderRadius: '8px',
-            fontSize: '14px',
-            fontWeight: '600',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
-            pointerEvents: 'none'
-          }}>
-            {isDragging ? '⋮⋮ Déplacement...' : '⋮⋮ Cliquez et glissez'}
-          </div>
-        </div>
-      )}
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
 
       {/* IFRAME BBB */}
       <iframe
@@ -361,15 +372,14 @@ const BBBWrapper = forwardRef(({ roomName, userName: userNameProp }: BBBWrapperP
         allow="camera; microphone; fullscreen; display-capture; autoplay"
         style={{
           width: '100%',
-          height: '100%',
+          flex: 1,
           border: 'none',
-          display: 'block',
-          pointerEvents: isAltPressed ? 'none' : 'auto'
+          display: 'block'
         }}
         title="BigBlueButton Meeting"
       />
 
-      {/* Poignée de redimensionnement - À GAUCHE */}
+      {/* Poignée de redimensionnement - EN BAS À DROITE */}
       <div
         onMouseDown={(e) => {
           e.preventDefault();
@@ -379,17 +389,12 @@ const BBBWrapper = forwardRef(({ roomName, userName: userNameProp }: BBBWrapperP
           const startY = e.clientY;
           const startWidth = size.width;
           const startHeight = size.height;
-          const startPosX = position.x;
 
           const handleResize = (e: MouseEvent) => {
-            const deltaX = e.clientX - startX;
-            const newWidth = Math.max(400, startWidth - deltaX);
+            const newWidth = Math.max(400, startWidth + (e.clientX - startX));
             const newHeight = Math.max(300, startHeight + (e.clientY - startY));
             
-            const newX = startPosX + (startWidth - newWidth);
-            
             setSize({ width: newWidth, height: newHeight });
-            setPosition(prev => ({ ...prev, x: newX }));
           };
 
           const handleResizeEnd = () => {
@@ -404,12 +409,12 @@ const BBBWrapper = forwardRef(({ roomName, userName: userNameProp }: BBBWrapperP
         style={{
           position: 'absolute',
           bottom: 0,
-          left: 0,
+          right: 0,
           width: '40px',
           height: '40px',
-          cursor: 'nesw-resize',
+          cursor: 'nwse-resize',
           backgroundColor: 'rgba(59, 130, 246, 0.8)',
-          borderTopRightRadius: '8px',
+          borderTopLeftRadius: '8px',
           zIndex: 10002,
           display: 'flex',
           alignItems: 'center',
@@ -428,35 +433,13 @@ const BBBWrapper = forwardRef(({ roomName, userName: userNameProp }: BBBWrapperP
           }
         }}
       >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" style={{ transform: 'scaleX(-1)' }}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
           <polyline points="15 3 21 3 21 9" />
           <polyline points="9 21 3 21 3 15" />
           <line x1="21" y1="3" x2="14" y2="10" />
           <line x1="3" y1="21" x2="10" y2="14" />
         </svg>
       </div>
-
-      {/* Indicateur Alt discret en bas */}
-      {!isAltPressed && !isDragging && (
-        <div style={{
-          position: 'absolute',
-          bottom: '50px',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          backgroundColor: 'rgba(0, 0, 0, 0.7)',
-          color: 'white',
-          padding: '6px 12px',
-          borderRadius: '6px',
-          fontSize: '11px',
-          zIndex: 10000,
-          opacity: 0.4,
-          pointerEvents: 'none',
-          whiteSpace: 'nowrap',
-          transition: 'opacity 0.3s ease'
-        }}>
-          Alt + glisser pour déplacer
-        </div>
-      )}
     </div>
   );
 });
