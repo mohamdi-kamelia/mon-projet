@@ -2,12 +2,10 @@ import { useEffect, useRef, forwardRef, useImperativeHandle, useState } from "re
 
 interface BBBWrapperProps {
   roomName: string;
+  userName?: string;  
 }
 
-/**
- * Composant BBB - Touche Alt pour déplacer (version finale)
- */
-const BBBWrapper = forwardRef(({ roomName }: BBBWrapperProps, ref) => {
+const BBBWrapper = forwardRef(({ roomName, userName: userNameProp }: BBBWrapperProps, ref) => {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
   const [bbbUrl, setBbbUrl] = useState<string>("");
@@ -24,7 +22,10 @@ const BBBWrapper = forwardRef(({ roomName }: BBBWrapperProps, ref) => {
   const [isCameraMuted, setIsCameraMuted] = useState(true);
   const [selectedAudioInput, setSelectedAudioInput] = useState<string>("");
   const [selectedVideoInput, setSelectedVideoInput] = useState<string>("");
-  const [userName, setUserName] = useState<string>("Guest");
+  const [userName, setUserName] = useState<string>(userNameProp || "Guest");
+  const isJoiningRef = useRef<boolean>(false);
+  const currentRoomRef = useRef<string>("");
+  const hasJoinedRef = useRef<boolean>(false);
 
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8080';
 
@@ -34,9 +35,25 @@ const BBBWrapper = forwardRef(({ roomName }: BBBWrapperProps, ref) => {
       setError("");
       setIsInMeeting(false);
       setBbbUrl("");
+      currentRoomRef.current = "";
+      isJoiningRef.current = false;
+      hasJoinedRef.current = false;
       return;
     }
 
+    if (isJoiningRef.current) {
+      console.log(" Appel joinRoom déjà en cours, ignoré");
+      return;
+    }
+
+    if (currentRoomRef.current === roomName && hasJoinedRef.current) {
+      console.log(" Déjà dans cette room:", roomName);
+      return;
+    }
+
+    console.log(" Joining BBB room:", roomName);
+    isJoiningRef.current = true;
+    currentRoomRef.current = roomName;
     setLoading(true);
     setError("");
 
@@ -62,29 +79,40 @@ const BBBWrapper = forwardRef(({ roomName }: BBBWrapperProps, ref) => {
       if (data.success && data.url) {
         setBbbUrl(data.url);
         setIsInMeeting(true);
+        hasJoinedRef.current = true;
         setLoading(false);
+        console.log(" BBB room joined successfully");
       } else {
         setError(data.error || "Impossible de rejoindre la réunion");
         setLoading(false);
+        hasJoinedRef.current = false;
       }
     } catch (err) {
       console.error("Erreur BBB:", err);
       setError("Erreur de connexion au serveur backend");
       setLoading(false);
+      hasJoinedRef.current = false;
+    } finally {
+      isJoiningRef.current = false;
     }
   };
 
   const leaveRoom = () => {
+    console.log("🚪 Leaving BBB room");
     setBbbUrl("");
     setIsInMeeting(false);
     setError("");
     setLoading(false);
+    currentRoomRef.current = "";
+    isJoiningRef.current = false;
+    hasJoinedRef.current = false;
   };
 
   // Détecter la touche Alt
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Alt') {
+        console.log("🔑 Alt key pressed!");
         setIsAltPressed(true);
         e.preventDefault();
       }
@@ -92,6 +120,7 @@ const BBBWrapper = forwardRef(({ roomName }: BBBWrapperProps, ref) => {
 
     const handleKeyUp = (e: KeyboardEvent) => {
       if (e.key === 'Alt') {
+        console.log(" Alt key released!");
         setIsAltPressed(false);
       }
     };
@@ -107,7 +136,10 @@ const BBBWrapper = forwardRef(({ roomName }: BBBWrapperProps, ref) => {
 
   // Gestion du drag
   const handleMouseDown = (e: React.MouseEvent) => {
+    console.log(" Mouse down - Alt pressed:", isAltPressed);
     if (!isAltPressed) return;
+    
+    console.log(" Starting drag");
     setIsDragging(true);
     dragStartPos.current = {
       x: e.clientX - position.x,
@@ -126,6 +158,9 @@ const BBBWrapper = forwardRef(({ roomName }: BBBWrapperProps, ref) => {
   };
 
   const handleMouseUp = () => {
+    if (isDragging) {
+      console.log(" Drag ended");
+    }
     setIsDragging(false);
     setIsResizing(false);
   };
@@ -195,12 +230,25 @@ const BBBWrapper = forwardRef(({ roomName }: BBBWrapperProps, ref) => {
   }));
 
   useEffect(() => {
-    if (roomName) {
-      joinRoom(roomName);
+    console.log(" roomName changed:", roomName, "- Current:", currentRoomRef.current);
+    
+    if (roomName && roomName !== "") {
+      if (currentRoomRef.current !== roomName) {
+        joinRoom(roomName);
+      }
     } else {
-      leaveRoom();
+      if (currentRoomRef.current !== "") {
+        leaveRoom();
+      }
     }
   }, [roomName]);
+
+  useEffect(() => {
+    if (userNameProp && userNameProp !== userName) {
+      console.log("👤 userName updated from prop:", userNameProp);
+      setUserName(userNameProp);
+    }
+  }, [userNameProp]);
 
   if (!isInMeeting || !bbbUrl) {
     return null;
@@ -258,7 +306,6 @@ const BBBWrapper = forwardRef(({ roomName }: BBBWrapperProps, ref) => {
   return (
     <div
       ref={containerRef}
-      onMouseDown={handleMouseDown}
       style={{
         position: 'fixed',
         left: `${position.x}px`,
@@ -275,9 +322,9 @@ const BBBWrapper = forwardRef(({ roomName }: BBBWrapperProps, ref) => {
         transition: 'box-shadow 0.2s ease, border 0.2s ease'
       }}
     >
-      {/* Overlay quand Alt pressé */}
       {isAltPressed && (
         <div
+          onMouseDown={handleMouseDown}
           style={{
             position: 'absolute',
             top: 0,
@@ -290,7 +337,7 @@ const BBBWrapper = forwardRef(({ roomName }: BBBWrapperProps, ref) => {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            pointerEvents: 'none'
+            pointerEvents: 'auto'
           }}
         >
           <div style={{
@@ -300,7 +347,8 @@ const BBBWrapper = forwardRef(({ roomName }: BBBWrapperProps, ref) => {
             borderRadius: '8px',
             fontSize: '14px',
             fontWeight: '600',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)'
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+            pointerEvents: 'none'
           }}>
             {isDragging ? '⋮⋮ Déplacement...' : '⋮⋮ Cliquez et glissez'}
           </div>

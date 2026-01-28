@@ -47,15 +47,12 @@ func main() {
 		log.Fatal("BBB_URL et BBB_SECRET doivent être définis dans .env")
 	}
 
-	// ✅ Nettoyer l'URL BBB pour supporter les deux formats :
-	// Format 1: https://bbb.atelier.ovh
-	// Format 2: https://bbb.atelier.ovh/bigbluebutton
 	bbbURL = strings.TrimSuffix(bbbURL, "/bigbluebutton")
 	bbbURL = strings.TrimSuffix(bbbURL, "/")
-	
-	log.Printf("🔧 BBB URL nettoyée: %s", bbbURL)
-	log.Printf("🔧 Les URLs générées utiliseront: %s/bigbluebutton/api/...", bbbURL)
-	log.Printf("🔐 BBB Secret configuré: %s", maskSecret(bbbSecret))
+
+	log.Printf(" BBB URL nettoyée: %s", bbbURL)
+	log.Printf(" Les URLs générées utiliseront: %s/bigbluebutton/api/...", bbbURL)
+	log.Printf(" BBB Secret configuré: %s", maskSecret(bbbSecret))
 
 	router := mux.NewRouter()
 
@@ -69,7 +66,7 @@ func main() {
 
 	// CORS
 	c := cors.New(cors.Options{
-		AllowedOrigins:   []string{"*"}, // En production, remplace par tes domaines spécifiques
+		AllowedOrigins:   []string{"*"},
 		AllowedMethods:   []string{"GET", "POST", "OPTIONS"},
 		AllowedHeaders:   []string{"Content-Type"},
 		AllowCredentials: true,
@@ -82,7 +79,7 @@ func main() {
 		port = "8080"
 	}
 
-	log.Printf("🚀 Serveur BBB backend démarré sur le port %s", port)
+	log.Printf(" Serveur BBB backend démarré sur le port %s", port)
 	log.Fatal(http.ListenAndServe(":"+port, handler))
 }
 
@@ -111,47 +108,93 @@ func handleJoinMeeting(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("📥 Demande de connexion: MeetingID=%s, User=%s, Moderator=%v", req.MeetingID, req.UserName, req.IsModerator)
+	log.Printf(" Demande de connexion: MeetingID=%s, User=%s, Moderator=%v", req.MeetingID, req.UserName, req.IsModerator)
 
-	// 1. Créer la réunion (si elle n'existe pas déjà, BBB ignore les doublons)
-	createURL, err := createMeeting(req.MeetingID)
+	meetingExists, err := checkMeetingExists(req.MeetingID)
 	if err != nil {
-		log.Printf("❌ Erreur création réunion: %v", err)
-		respondError(w, "Failed to create meeting", http.StatusInternalServerError)
-		return
+		log.Printf("⚠️ Erreur lors de la vérification: %v (on continue quand même)", err)
 	}
 
-	log.Printf("🔗 Create meeting URL: %s", createURL)
+	if !meetingExists {
+		log.Printf(" Réunion %s n'existe pas → Création en cours", req.MeetingID)
 
-	// ✅ IMPORTANT : Appeler l'API BBB pour VRAIMENT créer la réunion
-	createResp, err := http.Get(createURL)
-	if err != nil {
-		log.Printf("❌ Erreur lors de l'appel create: %v", err)
-		respondError(w, "Failed to create meeting", http.StatusInternalServerError)
-		return
+		createURL, err := createMeeting(req.MeetingID)
+		if err != nil {
+			log.Printf(" Erreur création réunion: %v", err)
+			respondError(w, "Failed to create meeting", http.StatusInternalServerError)
+			return
+		}
+
+		log.Printf(" Create meeting URL: %s", createURL)
+
+		createResp, err := http.Get(createURL)
+		if err != nil {
+			log.Printf(" Erreur lors de l'appel create: %v", err)
+			respondError(w, "Failed to create meeting", http.StatusInternalServerError)
+			return
+		}
+		defer createResp.Body.Close()
+
+		body, _ := io.ReadAll(createResp.Body)
+		log.Printf(" BBB create response status: %d", createResp.StatusCode)
+		log.Printf(" BBB create response: %s", string(body))
+
+		if createResp.StatusCode != 200 {
+			log.Printf(" BBB a retourné une erreur: %d", createResp.StatusCode)
+			respondError(w, fmt.Sprintf("BBB server error: %d", createResp.StatusCode), http.StatusInternalServerError)
+			return
+		}
+	} else {
+		log.Printf(" Réunion %s existe déjà → Pas de création, uniquement join", req.MeetingID)
 	}
-	defer createResp.Body.Close()
 
-	// Lire la réponse pour vérifier
-	body, _ := io.ReadAll(createResp.Body)
-	log.Printf("✅ BBB create response status: %d", createResp.StatusCode)
-	log.Printf("📄 BBB create response: %s", string(body))
-
-	if createResp.StatusCode != 200 {
-		log.Printf("❌ BBB a retourné une erreur: %d", createResp.StatusCode)
-		respondError(w, fmt.Sprintf("BBB server error: %d", createResp.StatusCode), http.StatusInternalServerError)
-		return
-	}
-
-	// 2. Générer le lien de participation
+	// Générer le lien de participation
 	joinURL := generateJoinURL(req.MeetingID, req.UserName, req.IsModerator)
 	log.Printf("🔗 Join URL généré: %s", joinURL)
 
-	// 3. Retourner le lien
+	// Retourner le lien
 	json.NewEncoder(w).Encode(JoinResponse{
 		Success: true,
 		URL:     joinURL,
 	})
+}
+
+func checkMeetingExists(meetingID string) (bool, error) {
+	params := url.Values{}
+	params.Set("meetingID", meetingID)
+
+	apiCall := "getMeetingInfo"
+	queryString := params.Encode()
+	checksum := calculateChecksum(apiCall + queryString + bbbSecret)
+
+	checkURL := fmt.Sprintf("%s/bigbluebutton/api/%s?%s&checksum=%s", bbbURL, apiCall, queryString, checksum)
+
+	log.Printf("Vérification existence réunion: %s", meetingID)
+
+	resp, err := http.Get(checkURL)
+	if err != nil {
+		log.Printf("Erreur HTTP lors de la vérification: %v", err)
+		return false, err
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	bodyStr := string(body)
+	log.Printf("Response getMeetingInfo: %s", bodyStr)
+
+	if strings.Contains(bodyStr, "FAILED") || strings.Contains(bodyStr, "notFound") || strings.Contains(bodyStr, "Meeting not found") {
+		log.Printf("Réunion n'existe pas")
+		return false, nil
+	}
+
+	if strings.Contains(bodyStr, "SUCCESS") {
+		log.Printf(" Réunion existe déjà")
+		return true, nil
+	}
+
+	// Par défaut, on considère qu'elle n'existe pas
+	log.Printf(" Réponse ambiguë, on considère que la réunion n'existe pas")
+	return false, nil
 }
 
 func createMeeting(meetingID string) (string, error) {
@@ -161,7 +204,6 @@ func createMeeting(meetingID string) (string, error) {
 	params.Set("attendeePW", "ap")  // Mot de passe participant
 	params.Set("moderatorPW", "mp") // Mot de passe modérateur
 
-	// 🎯 PARAMÈTRES DE CONTRÔLE IMPORTANTS
 	// Micro et caméra
 	params.Set("muteOnStart", "false")             // true = micro coupé au départ
 	params.Set("lockSettingsDisableMic", "false")  // true = empêche activation micro
@@ -186,7 +228,6 @@ func createMeeting(meetingID string) (string, error) {
 	queryString := params.Encode()
 	checksum := calculateChecksum(apiCall + queryString + bbbSecret)
 
-	// ✅ URL correcte avec /bigbluebutton/api
 	return fmt.Sprintf("%s/bigbluebutton/api/%s?%s&checksum=%s", bbbURL, apiCall, queryString, checksum), nil
 }
 
@@ -208,7 +249,6 @@ func generateJoinURL(meetingID, userName string, isModerator bool) string {
 	queryString := params.Encode()
 	checksum := calculateChecksum(apiCall + queryString + bbbSecret)
 
-	// ✅ URL correcte avec /bigbluebutton/api
 	return fmt.Sprintf("%s/bigbluebutton/api/%s?%s&checksum=%s", bbbURL, apiCall, queryString, checksum)
 }
 
@@ -227,7 +267,6 @@ func respondError(w http.ResponseWriter, message string, statusCode int) {
 	})
 }
 
-// Couper tous les micros
 func handleMuteAll(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		MeetingID string `json:"meetingID"`
@@ -253,7 +292,7 @@ func handleMuteAll(w http.ResponseWriter, r *http.Request) {
 	}
 	defer resp.Body.Close()
 
-	log.Printf("🔇 Muted all users in meeting %s", req.MeetingID)
+	log.Printf(" Muted all users in meeting %s", req.MeetingID)
 	json.NewEncoder(w).Encode(map[string]bool{"success": true})
 }
 
@@ -288,8 +327,6 @@ func handleMuteUser(w http.ResponseWriter, r *http.Request) {
 	log.Printf("🔇 Muted user %s in meeting %s", req.UserID, req.MeetingID)
 	json.NewEncoder(w).Encode(map[string]bool{"success": true})
 }
-
-// Éjecter un utilisateur
 func handleEjectUser(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		MeetingID string `json:"meetingID"`
@@ -317,11 +354,10 @@ func handleEjectUser(w http.ResponseWriter, r *http.Request) {
 	}
 	defer resp.Body.Close()
 
-	log.Printf("⛔ Ejected user %s from meeting %s", req.UserID, req.MeetingID)
+	log.Printf(" Ejected user %s from meeting %s", req.UserID, req.MeetingID)
 	json.NewEncoder(w).Encode(map[string]bool{"success": true})
 }
 
-// Récupérer la liste des participants
 func handleGetParticipants(w http.ResponseWriter, r *http.Request) {
 	meetingID := r.URL.Query().Get("meetingID")
 	if meetingID == "" {
@@ -345,16 +381,9 @@ func handleGetParticipants(w http.ResponseWriter, r *http.Request) {
 	}
 	defer resp.Body.Close()
 
-	// Note: Tu devras parser le XML de réponse BBB pour extraire les participants
-	// Pour l'instant, on retourne juste un exemple
-	// En production, utilise encoding/xml pour parser la réponse BBB
-
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"success":      true,
-		"participants": []map[string]interface{}{
-			// TODO: Parser la vraie réponse XML de BBB
-			// Pour l'instant, exemple statique
-		},
+		"participants": []map[string]interface{}{},
 	})
 }

@@ -30,11 +30,17 @@ import BBBWrapper from './components/BBB';
 interface UnityGameProps {
     onChangeJitsiRoom: (newRoom: string) => void;
     conferenceUrl?: string;
+    bbbRef?: React.RefObject<any>;
+    userName?: string;  
 }
 
-function UnityGame({ onChangeJitsiRoom, conferenceUrl: webConferenceUrl }: UnityGameProps) {
+function UnityGame({ 
+    onChangeJitsiRoom, 
+    conferenceUrl: webConferenceUrl, 
+    bbbRef: externalBbbRef,
+    userName  
+}: UnityGameProps) {
     // Unity context setup
-    //const baseUnity = "https://mam-virtuelle.s3.fr-par.scw.cloud/UnityBuild/Build/";
     const baseUnity = "/UnityBuild/Build/";
     const buildName = "UnityBuild";
     
@@ -52,8 +58,8 @@ function UnityGame({ onChangeJitsiRoom, conferenceUrl: webConferenceUrl }: Unity
         codeUrl: baseUnity + buildName + ".wasm",
     });
 
-    const containerRef = useRef<HTMLDivElement>(null);
     const bbbRef = useRef<any>(null);
+    const finalBbbRef = externalBbbRef || bbbRef;  
 
     // Custom hooks
     const tvModal = useUnityTV({
@@ -115,58 +121,6 @@ function UnityGame({ onChangeJitsiRoom, conferenceUrl: webConferenceUrl }: Unity
         }
     }, [isLoaded, UNSAFE__unityInstance]);
 
-    useEffect(() => {
-        if (!isLoaded) return;
-
-        const canvas = document.getElementById('unity-canvas') as HTMLCanvasElement;
-        const container = containerRef.current;
-        
-        if (!canvas || !container) {
-            console.warn("Canvas or container not found");
-            return;
-        }
-
-        console.log("Unity 6 Fix: Setting up auto-resize for canvas");
-
-        const resizeCanvas = () => {
-            const rect = container.getBoundingClientRect();
-            console.log(`Resizing canvas to: ${rect.width}x${rect.height}`);
-            
-            canvas.style.width = '100%';
-            canvas.style.height = '100%';
-            
-            // Forcer le recalcul
-            canvas.width = Math.floor(rect.width);
-            canvas.height = Math.floor(rect.height);
-            
-            // Notifier Unity du changement de taille
-            if (UNSAFE__unityInstance) {
-                try {
-                    UNSAFE__unityInstance.SendMessage(
-                        'Canvas',
-                        'OnResize',
-                        `${rect.width},${rect.height}`
-                    );
-                } catch (e) {
-                    // Ignore si la méthode n'existe pas dans Unity
-                }
-            }
-        };
-
-        resizeCanvas();
-        const timeoutId = setTimeout(resizeCanvas, 100);
-        const resizeObserver = new ResizeObserver(() => {
-            resizeCanvas();
-        });
-        resizeObserver.observe(container);
-        window.addEventListener('resize', resizeCanvas);
-        return () => {
-            clearTimeout(timeoutId);
-            resizeObserver.disconnect();
-            window.removeEventListener('resize', resizeCanvas);
-        };
-    }, [isLoaded, UNSAFE__unityInstance]);
-
     return (
         <div className="w-full h-full flex flex-col bg-gradient-to-br from-[#212952] to-[#a9bcdb] bg-[url(/images/header_background.png)] bg-cover">
             <div className='py-2 w-full flex items-center px-4 flex-shrink-0'>
@@ -179,10 +133,7 @@ function UnityGame({ onChangeJitsiRoom, conferenceUrl: webConferenceUrl }: Unity
 
             {!isLoaded && <LoadingScreen progress={loadingProgression} />}
 
-            <div
-                ref={containerRef}
-                className={`relative flex-1 w-full min-h-0 ${!isLoaded ? "hidden" : "block"}`}
-            >
+            <div className={`relative flex-1 w-full min-h-0 ${!isLoaded ? "hidden" : "block"}`}>
                 <Unity
                     id="unity-canvas"
                     unityProvider={unityProvider}
@@ -195,22 +146,15 @@ function UnityGame({ onChangeJitsiRoom, conferenceUrl: webConferenceUrl }: Unity
                 />
 
                 <TVModal {...tvModal} />
-
-                {/* Sign Modal */}
                 <SignModal {...signModal} />
-
-                {/* Conference iframe */}
                 <ConferenceIframe {...conference} />
-
-                {/* Library Desk Modal */}
                 <LibraryDeskModal {...libraryDeskModal} />
-
-                {/* News Stand Modal */}
                 <NewsStandModal {...newsStandModal} />
 
                 <BBBWrapper 
-                    ref={bbbRef}
+                    ref={finalBbbRef}
                     roomName={roomName}
+                    userName={userName}
                 />
 
                 {/* Fullscreen button */}
