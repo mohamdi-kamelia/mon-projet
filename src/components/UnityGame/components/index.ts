@@ -5,3 +5,4 @@ export { LoadingScreen } from './LoadingScreen';
 export { FullscreenButton } from './FullscreenButton';
 export { LibraryDeskModal } from './LibraryDeskModal';
 export { NewsStandModal } from './NewsStandModal';
+export { MediaModal } from './MediaModal';

@@ -11,7 +11,7 @@ export const TVModal = ({ isOpen, videoUrl, onClose }: TVModalProps) => {
 
     return (
         <div className="absolute inset-0 flex items-center justify-center z-50">
-            <div className="w-[73%] bg-transparent bg-opacity-75 rounded-lg overflow-hidden flex flex-col">
+            <div className="w-[80%] bg-transparent bg-opacity-75 rounded-lg overflow-hidden flex flex-col">
                 <div className="w-full aspect-video">
                     <iframe
                         width="100%"

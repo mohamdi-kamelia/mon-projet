@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { UnityEventListeners } from '../types';
+import type { UnityEventListeners } from './types';
 
 interface UseUnityBBBProps extends UnityEventListeners {
   onChangeJitsiRoom: (roomName: string) => void;

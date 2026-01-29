@@ -1,10 +1,3 @@
-/**
- * Client de signalisation WebRTC utilisant Socket.io
- * 
- * Ce module gère la communication de signalisation pour établir les connexions WebRTC
- * entre les pairs. Il transmet les offres, réponses et candidats ICE.
- */
-
 import { io, Socket } from 'socket.io-client';
 
 export interface SignalingMessage {

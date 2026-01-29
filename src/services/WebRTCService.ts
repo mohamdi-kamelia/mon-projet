@@ -1,7 +1,3 @@
-/**
- * WebRTC Service - Gère les connexions peer-to-peer pour l'audio et la vidéo
- */
-
 export interface WebRTCConfig {
   iceServers: RTCIceServer[];
 }

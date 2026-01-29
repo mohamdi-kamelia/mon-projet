@@ -212,7 +212,7 @@ const BBBWrapper = forwardRef(({ roomName, userName: userNameProp }: BBBWrapperP
   }));
 
   useEffect(() => {
-    console.log("📢 roomName changed:", roomName, "- Current:", currentRoomRef.current);
+    console.log(" roomName changed:", roomName, "- Current:", currentRoomRef.current);
     
     if (roomName && roomName !== "") {
       if (currentRoomRef.current !== roomName) {
