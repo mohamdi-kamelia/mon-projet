@@ -19,16 +19,16 @@ export const useUnityBBB = ({
     const [room] = parameters as [string];
     
     if (isProcessingRef.current) {
-      console.log("🚫 Event joinRoom ignored (already processing)");
+      console.log(" Event joinRoom ignored (already processing)");
       return;
     }
     
     if (lastRoomRef.current === room) {
-      console.log("🚫 Event joinRoom ignored (same room):", room);
+      console.log(" Event joinRoom ignored (same room):", room);
       return;
     }
     
-    console.log("🎯 Unity requests to join BBB room:", room);
+    console.log(" Unity requests to join BBB room:", room);
     
     isProcessingRef.current = true;
     lastRoomRef.current = room;

@@ -41,12 +41,12 @@ const BBBWrapper = forwardRef(({ roomName, userName: userNameProp }: BBBWrapperP
     }
 
     if (isJoiningRef.current) {
-      console.log("🚫 Appel joinRoom déjà en cours, ignoré");
+      console.log(" Appel joinRoom déjà en cours, ignoré");
       return;
     }
 
     if (currentRoomRef.current === roomName && hasJoinedRef.current) {
-      console.log("🚫 Déjà dans cette room:", roomName);
+      console.log(" Déjà dans cette room:", roomName);
       return;
     }
 
