@@ -1,73 +1,79 @@
-# React + TypeScript + Vite
+# MAM-WebUnityBuild
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+---
 
-Currently, two official plugins are available:
+## Installation
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+### Prérequis 
+Un gestionnaire de paquets inclus dans Node.js (npm) est requis.  
 
-## React Compiler
+### Étapes d'installation
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+1. **Téléchargement**
+   - Clonez ce projet
 
-## Expanding the ESLint configuration
+2. **Configuration**
+   - `npm i`
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+3. **Lancement**
+   - **Développement**: `npm run dev`  
+   - **Build**: `npm run build`
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+--- 
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+## Unity
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+### Prérequis
+Une build d'un projet Unity WEBGL, sans compression de fichier
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### Intégration
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+1. **Ajouter les fichiers**
+   - Remplacer les fichiers du dossier `public/UnityBuild/Build` par les fichiers de votre build présent dans `NomDeLaBuild/Build`
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+2. **Mettre à jour le site**
+    - Dans le fichier `src/components/UnityGame.tsx`, remplacer la valeur de la variable `buildName` par le nom de votre build. 
+
+Et voilà, votre nouvelle build est intégrée ! 
+
+
+--- 
+
+## DSFR (Design System de l’État)
+
+### Installation
+
+Le DSFR est installé automatiquement via les dépendances npm :
+
+```bash
+npm install
+
+
+---
+
+## BigBlueButton (BBB)
+
+Ce projet utilise BigBlueButton (BBB) pour la **visioconférence**.
+
+### Important - Ordre de démarrage
+
+**Le backend doit être lancé AVANT le frontend pour que BBB fonctionne.**
+
+### Lancement
+
+1. **Démarrer le backend** (Go)
+
+   ```bash
+   cd backend
+   cd bbb-backend
+   go run main.go
+   ```
+   
+2. **Démarrer le frontend** (dans un autre terminal)
+   ```bash
+   npm run dev
+   ```
+
+Le backend Go gère la connexion avec le serveur BBB et génère les liens de jointure sécurisés pour les visioconférences.
+
+---
