@@ -1,0 +1,36 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-gray-200;
+  }
+  
+  body {
+    @apply bg-white text-gray-900;
+    font-family: 'Poppins', sans-serif;
+    margin: 0;
+    padding: 0;
+  }
+}
+
+@layer components {
+  .glass-effect {
+    @apply bg-white/10 backdrop-blur-md border border-white/20;
+  }
+}
+
+/* Variables CSS personnalisées */
+:root {
+  --color-BluePlateforme: #0062FF;
+  --color-RedPlateforme: #E74A34;
+  --color-GreenPlateforme: #00988F;
+  
+  --color-MainBlueMAM: #212952;
+  --color-MainPinkMAM: #ed706e;
+  --color-MainGreenMAM: #59bba5;
+  --color-SecondaryBlueMAM: #a9bcdb;
+  --color-SecondaryPinkMAM: #fbd9cf;
+  --color-SecondaryGreenMAM: #e2f1ed;
+}

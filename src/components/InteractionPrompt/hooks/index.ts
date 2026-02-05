@@ -1,0 +1,1 @@
+export { useUnityInteractionPrompt } from './useUnityInteractionPrompt';
