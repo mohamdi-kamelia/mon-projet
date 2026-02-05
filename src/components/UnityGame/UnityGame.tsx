@@ -174,14 +174,7 @@ function UnityGame({
 
     return (
         <div className="flex flex-col place-self-center bg-gradient-to-br from-[#212952] to-[#a9bcdb] bg-[url(/images/header_background.png)] bg-cover h-full w-full">
-            {/* Header */}
-            <div className='py-2 w-full flex items-center px-4'>
-                <div className='w-full'>
-                    <h3 className='text-lg text-SecondaryGreenMAM text-center'>
-                        Bienvenue dans la Maison des Mathématiques Virtuelles !
-                    </h3>
-                </div>
-            </div>
+
 
             {/* Loading screen */}
             {!isLoaded && <LoadingScreen progress={loadingProgression} />}
