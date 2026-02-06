@@ -9,3 +9,4 @@ export { useModalCursor } from './useModalCursor';
 export { useUnityInitialFocus } from './useUnityInitialFocus';
 export { useUnityNewsStand } from './useUnityNewsStand';
 export { useUnityMedia } from './useUnityMedia';
+export { useUnityProjectSelection } from './useUnityProjectSelection';
