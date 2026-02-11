@@ -57,6 +57,9 @@ func main() {
 	// Health check
 	router.HandleFunc("/health", handleHealth).Methods("GET")
 
+	//  WebSocket pour WebRTC
+	router.HandleFunc("/ws", handleWebSocket)
+
 	// Auth routes (public)
 	router.HandleFunc("/api/auth/register", handleRegister).Methods("POST")
 	router.HandleFunc("/api/auth/login", handleLogin).Methods("POST")
@@ -87,6 +90,7 @@ func main() {
 	// Démarrer le serveur
 	log.Printf("🚀 Backend started on port %s", port)
 	log.Printf("🔗 API URL: http://localhost:%s", port)
+	log.Printf("🔌 WebSocket: ws://localhost:%s/ws", port)
 	log.Printf("📊 Database: ./mam_auth.db (SQLite)")
 	log.Fatal(http.ListenAndServe(":"+port, handler))
 }

@@ -1,5 +1,4 @@
 import { useWebRTC } from './hooks/use-webrtc';
-import { usePositionSync } from './hooks/use-position-sync';
 import { useProximityAudio } from './hooks/use-proximity-audio';
 import type { Vector3 } from '../../lib/webrtc/types';
 import { VideoOverlay } from './VideoOverlay';
@@ -16,7 +15,6 @@ interface WebrtcProps {
 export function Webrtc({
   ws,
   playerId,
-  getPlayerPosition,
   getPlayerDistance,
   videoPosition = 'top-right',
   enabled = true,
@@ -27,12 +25,6 @@ export function Webrtc({
     enabled,
   });
 
-  usePositionSync({
-    ws,
-    playerId,
-    getPosition: getPlayerPosition,
-    enabled: enabled && isInitialized,
-  });
 
   useProximityAudio({
     remoteStreams,
