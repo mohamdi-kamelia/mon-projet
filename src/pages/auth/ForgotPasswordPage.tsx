@@ -4,7 +4,8 @@ import { Button } from "@codegouvfr/react-dsfr/Button";
 import { Input } from "@codegouvfr/react-dsfr/Input";
 import { Alert } from "@codegouvfr/react-dsfr/Alert";
 
-const API_URL = 'http://localhost:8080';
+// const API_URL = 'http://localhost:8080';
+const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8080';
 
 export function ForgotPasswordPage() {
   const [loading, setLoading] = useState(false);
@@ -55,8 +56,8 @@ export function ForgotPasswordPage() {
       <div className="relative w-full max-w-md">
         {/* Lien retour */}
         <div className="mb-6">
-          <Link 
-            to="/login" 
+          <Link
+            to="/login"
             className="fr-link inline-flex items-center gap-2 hover:underline"
           >
             <span className="ri-arrow-left-line" aria-hidden="true"></span>
@@ -138,7 +139,7 @@ export function ForgotPasswordPage() {
                 />
 
                 {/* Submit Button DSFR */}
-                <Button 
+                <Button
                   type="submit"
                   disabled={loading}
                   iconId={loading ? undefined : "ri-mail-send-line"}

@@ -4,8 +4,11 @@ import (
 	"database/sql"
 	"log"
 	"time"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
+// Auth types
 type User struct {
 	ID           int        `json:"id"`
 	Email        string     `json:"email"`
@@ -90,5 +93,30 @@ func initDB() error {
 	}
 
 	log.Println("✅ Database initialized successfully")
+
+	// Seed default user if no users exist
+	var count int
+	err = db.QueryRow("SELECT COUNT(*) FROM users").Scan(&count)
+	if err != nil {
+		return err
+	}
+
+	if count == 0 {
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte("rtNGsxMpjw"), bcrypt.DefaultCost)
+		if err != nil {
+			return err
+		}
+
+		_, err = db.Exec(
+			"INSERT INTO users (email, password_hash, name) VALUES (?, ?, ?)",
+			"mam@ac-creteil.fr", string(hashedPassword), "mam mam",
+		)
+		if err != nil {
+			return err
+		}
+
+		log.Println("🌱 Seed user created: mam@ac-creteil.fr")
+	}
+
 	return nil
 }
