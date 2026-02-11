@@ -8,17 +8,17 @@ services:
     ports:
       - "${FRONTEND_PORT:-80}:80"
     depends_on:
-      - ws-server
+  #    - ws-server
       - bbb-backend
     restart: unless-stopped
 
-  ws-server:
-    build:
-      context: ./Server
-      dockerfile: Dockerfile
-    ports:
-      - "8080:8080"
-    restart: unless-stopped
+#  ws-server:
+ #   build:
+ #     context: ./Server
+ #     dockerfile: Dockerfile
+ #   ports:
+ #     - "8080:8080"
+ #   restart: unless-stopped
 
   bbb-backend:
     build:
