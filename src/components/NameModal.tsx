@@ -119,7 +119,7 @@ export function NameModal({userName, onUserNameChange} : {userName : string, onU
         </Button>
       </DialogTrigger>
       
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="bg-white sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Profil utilisateur</DialogTitle>
           <DialogDescription>
@@ -143,7 +143,7 @@ export function NameModal({userName, onUserNameChange} : {userName : string, onU
           <DialogClose asChild>
             <Button 
               type="button" 
-              className="bg-green-600 hover:bg-green-700 text-white"
+              className="bg-green-600 hover:bg-green-700 text-white hover:text-black"
               onClick={handleValidate}
             >
               Valider

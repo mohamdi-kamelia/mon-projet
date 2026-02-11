@@ -174,14 +174,7 @@ function UnityGame({
 
     return (
         <div className="flex flex-col place-self-center bg-gradient-to-br from-[#212952] to-[#a9bcdb] bg-[url(/images/header_background.png)] bg-cover h-full w-full">
-            {/* Header */}
-            <div className='py-2 w-full flex items-center px-4'>
-                <div className='w-full'>
-                    <h3 className='text-lg text-SecondaryGreenMAM text-center'>
-                        Bienvenue dans la Maison des Mathématiques Virtuelles !
-                    </h3>
-                </div>
-            </div>
+
 
             {/* Loading screen */}
             {!isLoaded && <LoadingScreen progress={loadingProgression} />}
@@ -240,12 +233,12 @@ function UnityGame({
                 />
 
                 {/* Only show when in Third Person View AND loaded */}
-                {isLoaded && !conference.isFullscreen && mapHook.currentSceneIndex > 0 && (
+                {isLoaded && !conference.isFullscreen && mapHook.currentSceneIndex > 1 && (
                     <CursorHelp isVisible={settingsHook.settings.viewType === EViewType.THIRD_PERSON} />
                 )}
 
                 {/* Camera Rotation Buttons - Only visible in Isometric view, after settings loaded */}
-                {isLoaded && !conference.isFullscreen && mapHook.currentSceneIndex > 0 && !isAnyModalOpen && !settingsHook.isLoading && (
+                {isLoaded && !conference.isFullscreen && mapHook.currentSceneIndex > 1 && !isAnyModalOpen && !settingsHook.isLoading && (
                     <CameraRotationButtons
                         isLoaded={isLoaded}
                         unityInstance={UNSAFE__unityInstance}
@@ -254,12 +247,12 @@ function UnityGame({
                 )}
 
                 {/* Map Button - Displayed when no other blocking UI is active */}
-                {isLoaded && !conference.isFullscreen && mapHook.currentSceneIndex > 0 && !mapHook.isOpen && !isAnyModalOpen && (
+                {isLoaded && !conference.isFullscreen && mapHook.currentSceneIndex > 1 && !mapHook.isOpen && !isAnyModalOpen && (
                     <MapButton onClick={mapHook.openMap} />
                 )}
 
                 {/*Interaction Prompt - only show when no modal is open */}
-                {!isAnyModalOpen && mapHook.currentSceneIndex > 0 && (
+                {!isAnyModalOpen && mapHook.currentSceneIndex > 1 && (
                     <InteractionPrompt
                         isVisible={interactionPrompt.isVisible}
                         isMobile={interactionPrompt.isMobile}
@@ -276,7 +269,7 @@ function UnityGame({
                 )}
 
                 {/* Settings button (web-triggered) */}
-                {isLoaded && !conference.isFullscreen && mapHook.currentSceneIndex > 0 && !settingsHook.isOpen && (
+                {isLoaded && !conference.isFullscreen && mapHook.currentSceneIndex > 1 && !settingsHook.isOpen && (
                     <SettingsButton onClick={settingsHook.openModal} />
                 )}
             </div>
