@@ -36,6 +36,7 @@ import BBBWrapper from './components/BBB';
 
 // Camera rotation buttons for isometric view
 import { CameraRotationButtons } from '../CameraRotation/CameraRotationButtons';
+import { useUnityProximityCharacters } from './hooks/useUnityProximityCharacters';
 
 
 interface UnityGameProps {
@@ -150,6 +151,13 @@ function UnityGame({
         isLoaded,
         unityInstance: UNSAFE__unityInstance
     });
+
+    const proximityCall = useUnityProximityCharacters({
+        addEventListener,
+        removeEventListener,
+        isLoaded,
+        unityInstance: UNSAFE__unityInstance,
+    })
 
     // Automatically focus Unity canvas on initial load
     useUnityInitialFocus({ isLoaded });
