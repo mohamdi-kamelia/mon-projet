@@ -18,6 +18,7 @@ import {
     useUnityInitialFocus,
     useUnityNewsStand,
     useUnityMedia,
+    useUnityGame,
     useUnityProximityVoc
 } from './hooks';
 
@@ -30,7 +31,8 @@ import {
     FullscreenButton,
     LibraryDeskModal,
     NewsStandModal,
-    MediaModal
+    MediaModal,
+    GameModal
 } from './components';
 
 import BBBWrapper from './components/BBB';
@@ -131,6 +133,13 @@ function UnityGame({
         unityInstance: UNSAFE__unityInstance
     });
 
+    const gameModal = useUnityGame({
+        addEventListener,
+        removeEventListener,
+        isLoaded,
+        unityInstance: UNSAFE__unityInstance
+    });
+
     const settingsHook = useUnitySettings({
         addEventListener,
         removeEventListener,
@@ -176,7 +185,8 @@ function UnityGame({
         signModal.isOpen || 
         libraryDeskModal.isOpen || 
         newsStandModal.isOpen || 
-        mediaModal.isOpen || 
+        mediaModal.isOpen ||
+        gameModal.isOpen ||
         settingsHook.isOpen ||
         mapHook.isOpen;
 
@@ -217,6 +227,9 @@ function UnityGame({
 
                 {/* Media/Poster Modal */}
                 <MediaModal {...mediaModal} />
+
+                {/* Game Modal (Chess, Connect4, etc.) */}
+                <GameModal {...gameModal} playerName={userName} />
 
                 {/* BBB Wrapper */}
                 <BBBWrapper 
