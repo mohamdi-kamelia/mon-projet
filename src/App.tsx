@@ -21,7 +21,7 @@ function UnityGameWithFooter() {
   useEffect(() => {
     if (!user) return;
 
-    const websocket = new WebSocket('ws://localhost:8080/ws');
+    const websocket = new WebSocket('ws://localhost:8081/ws');
 
     websocket.onopen = () => {
       console.log('WebSocket connecté');
@@ -55,6 +55,7 @@ function UnityGameWithFooter() {
 
     // Quand Unity détecte qu'un joueur est proche
     const handleJoinWebRTC = (event: Event) => {
+      console.log(event);
       const targetPlayerID = (event as CustomEvent).detail;
       console.log('Unity: JoinWebRTC', targetPlayerID);
 
