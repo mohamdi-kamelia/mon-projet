@@ -17,7 +17,8 @@ import {
     useUnityLibraryDesk,
     useUnityInitialFocus,
     useUnityNewsStand,
-    useUnityMedia
+    useUnityMedia,
+    useUnityProximityVoc
 } from './hooks';
 
 // Components
@@ -150,6 +151,13 @@ function UnityGame({
         isLoaded,
         unityInstance: UNSAFE__unityInstance
     });
+
+    const proximityCall = useUnityProximityVoc({
+        addEventListener,
+        removeEventListener,
+        isLoaded,
+        unityInstance: UNSAFE__unityInstance
+    })
 
     // Automatically focus Unity canvas on initial load
     useUnityInitialFocus({ isLoaded });
