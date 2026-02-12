@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 
-interface UseUnityProximityCharactersProp {
+interface UseUnityProximityVocProp {
     addEventListener: any;
     removeEventListener: any;
     isLoaded: boolean;
@@ -9,14 +9,14 @@ interface UseUnityProximityCharactersProp {
     targetPlayerID ?: string;
 }
 
-export const useUnityProximityCharacters = ({
+export const useUnityProximityVoc = ({
     addEventListener,
     removeEventListener,
     isLoaded,
     unityInstance,
     localPlayerID = "",
     targetPlayerID = "",
-}: UseUnityProximityCharactersProp) => {
+}: UseUnityProximityVocProp) => {
     const [localPlayer, setLocalPlayer] = useState<string>("");
     const [targetPlayer, setTargetPlayer] = useState<string>("");
     const [isActive, setIsActive] = useState<boolean>(false);
@@ -53,8 +53,8 @@ export const useUnityProximityCharacters = ({
         addEventListener('LeaveWebRTC', handleLeaveCall);
         
         return () => {
-            addEventListener('JoinWebRTC', handleJoinCall);
-            addEventListener('LeaveWebRTC', handleLeaveCall);
+            removeEventListener('JoinWebRTC', handleJoinCall);
+            removeEventListener('LeaveWebRTC', handleLeaveCall);
         };
     }, [handleJoinCall, handleLeaveCall]);
 

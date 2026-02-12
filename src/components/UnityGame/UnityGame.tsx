@@ -17,7 +17,8 @@ import {
     useUnityLibraryDesk,
     useUnityInitialFocus,
     useUnityNewsStand,
-    useUnityMedia
+    useUnityMedia,
+    useUnityProximityVoc
 } from './hooks';
 
 // Components
@@ -36,7 +37,6 @@ import BBBWrapper from './components/BBB';
 
 // Camera rotation buttons for isometric view
 import { CameraRotationButtons } from '../CameraRotation/CameraRotationButtons';
-import { useUnityProximityCharacters } from './hooks/useUnityProximityCharacters';
 
 
 interface UnityGameProps {
@@ -152,11 +152,11 @@ function UnityGame({
         unityInstance: UNSAFE__unityInstance
     });
 
-    const proximityCall = useUnityProximityCharacters({
+    const proximityCall = useUnityProximityVoc({
         addEventListener,
         removeEventListener,
         isLoaded,
-        unityInstance: UNSAFE__unityInstance,
+        unityInstance: UNSAFE__unityInstance
     })
 
     // Automatically focus Unity canvas on initial load
