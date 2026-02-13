@@ -8,102 +8,98 @@ import { Webrtc } from './components/Webrtc';
 import { useRef, useState, useCallback, useEffect } from 'react';
 import { useAuth } from './contexts/AuthContext';
 
+// URL relative : Vite proxifie /ws vers ws://localhost:8080/ws
+// URL relative : passe toujours par le proxy Vite (vite.config.ts /ws -> ws://localhost:8080)
+// Vite proxifie la connexion wss -> ws, le backend Go n'a pas besoin de TLS
+const WS_URL = import.meta.env.VITE_WS_URL ?? '/ws';
+
 function UnityGameWithFooter() {
   const jitsiRef = useRef<any>(null);
   const [roomName, setRoomName] = useState<string>("");
   const { user } = useAuth();
 
-  // WebRTC WebSocket et état
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [playerDistances, setPlayerDistances] = useState<Map<string, number>>(new Map());
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // WebRTC Connexion WebSocket au serveur
+  // WebSocket avec reconnexion automatique
   useEffect(() => {
     if (!user) return;
 
-    const websocket = new WebSocket('ws://localhost:8081/ws');
+    let websocket: WebSocket;
+    let cancelled = false;
 
-    websocket.onopen = () => {
-      console.log('WebSocket connecté');
+    const connect = () => {
+      if (cancelled) return;
 
-      // Envoie le join avec l'ID du joueur
-      websocket.send(JSON.stringify({
-        type: 'join',
-        playerId: user.id.toString(),
-      }));
+      websocket = new WebSocket(WS_URL);
 
-      setWs(websocket);
+      websocket.onopen = () => {
+        console.log('WebSocket connecte');
+        websocket.send(JSON.stringify({
+          type: 'join',
+          playerId: user.id.toString(),
+        }));
+        setWs(websocket);
+      };
+
+      websocket.onclose = () => {
+        console.log('WebSocket deconnecte - reconnexion dans 3s...');
+        setWs(null);
+        if (!cancelled) {
+          reconnectTimerRef.current = setTimeout(connect, 3000);
+        }
+      };
+
+      websocket.onerror = (error) => {
+        console.error('WebSocket error:', error);
+      };
     };
 
-    websocket.onclose = () => {
-      console.log('WebSocket déconnecté');
-      setWs(null);
-    };
-
-    websocket.onerror = (error) => {
-      console.error(' WebSocket error:', error);
-    };
+    connect();
 
     return () => {
-      websocket.close();
+      cancelled = true;
+      if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
+      websocket?.close();
     };
   }, [user]);
 
-  //  WebRTC Écoute les événements Unity (JoinWebRTC / LeaveWebRTC)
-  useEffect(() => {
-    if (!ws || !user) return;
-
-    // Quand Unity détecte qu'un joueur est proche
-    const handleJoinWebRTC = (event: Event) => {
-      console.log(event);
-      const targetPlayerID = (event as CustomEvent).detail;
-      console.log('Unity: JoinWebRTC', targetPlayerID);
-
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({
-          type: 'proximity_connect',
-          playerId: user.id.toString(),
-          targetPlayerId: targetPlayerID,
-          distance: 4.0,
-        }));
-      }
-    };
-
-    // Quand Unity détecte qu'un joueur s'éloigne
-    const handleLeaveWebRTC = (event: Event) => {
-      const targetPlayerID = (event as CustomEvent).detail;
-      console.log('Unity: LeaveWebRTC', targetPlayerID);
-
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({
-          type: 'proximity_disconnect',
-          playerId: user.id.toString(),
-          targetPlayerId: targetPlayerID,
-          distance: 10.0,
-        }));
-      }
-    };
-
-    window.addEventListener('JoinWebRTC', handleJoinWebRTC);
-    window.addEventListener('LeaveWebRTC', handleLeaveWebRTC);
-
-    return () => {
-      window.removeEventListener('JoinWebRTC', handleJoinWebRTC);
-      window.removeEventListener('LeaveWebRTC', handleLeaveWebRTC);
-    };
+  // Callbacks passes a UnityGame
+  // react-unity-webgl dispatche ses evenements en interne (pas via window)
+  // donc on passe les handlers directement a UnityGame qui a acces a addEventListener Unity
+  const handleJoinWebRTC = useCallback((targetPlayerId: string) => {
+    console.log('Unity: JoinWebRTCStream ->', targetPlayerId);
+    if (ws && ws.readyState === WebSocket.OPEN && user) {
+      ws.send(JSON.stringify({
+        type: 'proximity_connect',
+        playerId: user.id.toString(),
+        targetPlayerId,
+        distance: 4.0,
+      }));
+    }
   }, [ws, user]);
 
-  // WebRTC Récupère la position du joueur (depuis Unity)
+  const handleLeaveWebRTC = useCallback((targetPlayerId: string) => {
+    console.log('Unity: LeaveWebRTCStream ->', targetPlayerId);
+    if (ws && ws.readyState === WebSocket.OPEN && user) {
+      ws.send(JSON.stringify({
+        type: 'proximity_disconnect',
+        playerId: user.id.toString(),
+        targetPlayerId,
+        distance: 10.0,
+      }));
+    }
+  }, [ws, user]);
+
   const getPlayerPosition = useCallback(() => {
     return { x: 0, y: 0, z: 0 };
   }, []);
 
-  // WebRTC Récupère la distance avec un joueur
   const getPlayerDistance = useCallback((playerId: string) => {
     return playerDistances.get(playerId) ?? 5.0;
   }, [playerDistances]);
 
-  // Gestion des rooms
   const handleChangeRoom = useCallback((newRoom: string) => {
     setRoomName(newRoom);
     console.log("App: Room changed to:", newRoom);
@@ -123,9 +119,10 @@ function UnityGameWithFooter() {
             conferenceUrl="https://stream.warlockproduction.fr/hls/live/mamvirtuelle/index.m3u8"
             bbbRef={jitsiRef}
             userName={user?.name || ""}
+            onJoinWebRTC={handleJoinWebRTC}
+            onLeaveWebRTC={handleLeaveWebRTC}
           />
 
-          {/* WebRTC - Overlay vidéo */}
           {user && ws && (
             <Webrtc
               ws={ws}

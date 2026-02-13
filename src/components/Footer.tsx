@@ -9,7 +9,7 @@ import {
 import { Mic, MicOff, Camera, CameraOff, ChevronUp, LogOut } from "lucide-react";
 import { useState, useEffect } from "react";
 import { NameModal } from "./NameModal";
-import { useAuth } from "@/contexts/AuthContext"; 
+import { useAuth } from "@/contexts/AuthContext";
 
 type Device = {
   deviceId: string;
@@ -39,7 +39,7 @@ function Footer({
   onForceQuit: () => void;
   userName?: string;
 }) {
-  const { user, logout } = useAuth(); // ← AJOUT : Récupérer user et logout
+  const { user, logout } = useAuth();
 
   const [audioInputDevices, setAudioInputDevices] = useState<Device[]>([]);
   const [videoInputDevices, setVideoInputDevices] = useState<Device[]>([]);
@@ -50,39 +50,59 @@ function Footer({
   const [isCameraMuted, setIsCameraOn] = useState(true);
 
   useEffect(() => {
+    // CORRECTIF : navigator.mediaDevices est undefined en HTTP (contexte non sécurisé)
+    // ou dans certains environnements sans accès média.
     const loadDevices = async () => {
-      await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
-      const devices = await navigator.mediaDevices.enumerateDevices();
+      if (!navigator?.mediaDevices?.getUserMedia) {
+        console.warn(
+          "getUserMedia non disponible. Vérifiez que la page est servie en HTTPS " +
+          "ou sur localhost. Les périphériques audio/vidéo ne seront pas listés."
+        );
+        return;
+      }
 
-      setAudioInputDevices(
-        devices
-          .filter((d) => d.kind === "audioinput")
-          .map((d) => ({
-            deviceId: d.deviceId,
-            label: d.label || "Micro inconnu",
-          }))
-      );
-      setVideoInputDevices(
-        devices
-          .filter((d) => d.kind === "videoinput")
-          .map((d) => ({
-            deviceId: d.deviceId,
-            label: d.label || "Camera inconnue",
-          }))
-      );
+      try {
+        await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+        const devices = await navigator.mediaDevices.enumerateDevices();
+
+        setAudioInputDevices(
+          devices
+            .filter((d) => d.kind === "audioinput")
+            .map((d) => ({
+              deviceId: d.deviceId,
+              label: d.label || "Micro inconnu",
+            }))
+        );
+        setVideoInputDevices(
+          devices
+            .filter((d) => d.kind === "videoinput")
+            .map((d) => ({
+              deviceId: d.deviceId,
+              label: d.label || "Camera inconnue",
+            }))
+        );
+      } catch (err) {
+        console.error("Impossible d'accéder aux périphériques média :", err);
+      }
     };
 
     loadDevices();
-    navigator.mediaDevices.addEventListener("devicechange", loadDevices);
 
-    return () => {
-      navigator.mediaDevices.removeEventListener("devicechange", loadDevices);
-    };
+    // Garde aussi sur l'écouteur d'événements
+    if (navigator?.mediaDevices) {
+      navigator.mediaDevices.addEventListener("devicechange", loadDevices);
+      return () => {
+        navigator.mediaDevices.removeEventListener("devicechange", loadDevices);
+      };
+    }
   }, []);
 
   useEffect(() => {
     if (audioInputDevices.length > 0) {
-      handleAudioChange(audioInputDevices.find((d) => d.deviceId === "default")?.label || audioInputDevices[0].label);
+      handleAudioChange(
+        audioInputDevices.find((d) => d.deviceId === "default")?.label ||
+        audioInputDevices[0].label
+      );
     }
   }, [audioInputDevices]);
 
@@ -94,7 +114,6 @@ function Footer({
 
   const toggleMute = ({ _isMuted }: { _isMuted: boolean }) => {
     setIsMuted(_isMuted);
-    console.log(isMuted);
   };
 
   const toggleCamera = ({ _isMuted }: { _isMuted: boolean }) => {
@@ -104,13 +123,11 @@ function Footer({
   const handleAudioChange = (deviceName: string) => {
     setSelectedAudioInput(deviceName);
     OnAudioInputChange(deviceName);
-    console.log("Audio : " + deviceName);
   };
 
   const handleVideoChange = (deviceName: string) => {
     setSelectedVideoInput(deviceName);
     OnVideoInputChange(deviceName);
-    console.log("Video : " + deviceName);
   };
 
   return (
@@ -122,13 +139,11 @@ function Footer({
         <div className="flex px-3">
           <div className="flex h-full px-2 mx-2">
             <Button
-              onClick={() => {
-                toggleMute({ _isMuted: onMute() });
-              }}
+              onClick={() => toggleMute({ _isMuted: onMute() })}
               variant="secondary"
               className={`rounded-r-none h-full ${isMuted ? "bg-MainPinkMAM" : "bg-MainGreenMAM"}`}
             >
-              {isMuted ? (<MicOff className="w-5 h-5" />) : (<Mic className="w-5 h-5" />)}
+              {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger>
@@ -141,15 +156,21 @@ function Footer({
               </DropdownMenuTrigger>
               <DropdownMenuContent>
                 <DropdownMenuRadioGroup value={selectedAudioInput}>
-                  {audioInputDevices.map((d) => (
-                    <DropdownMenuRadioItem
-                      value={d.label}
-                      key={d.deviceId}
-                      onClick={() => handleAudioChange(d.label)}
-                    >
-                      {d.label}
+                  {audioInputDevices.length === 0 ? (
+                    <DropdownMenuRadioItem value="none" disabled>
+                      Aucun périphérique détecté
                     </DropdownMenuRadioItem>
-                  ))}
+                  ) : (
+                    audioInputDevices.map((d) => (
+                      <DropdownMenuRadioItem
+                        value={d.label}
+                        key={d.deviceId}
+                        onClick={() => handleAudioChange(d.label)}
+                      >
+                        {d.label}
+                      </DropdownMenuRadioItem>
+                    ))
+                  )}
                 </DropdownMenuRadioGroup>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -157,13 +178,11 @@ function Footer({
 
           <div className="flex h-full px-2 mx-2">
             <Button
-              onClick={() => {
-                toggleCamera({ _isMuted: onVideo() });
-              }}
+              onClick={() => toggleCamera({ _isMuted: onVideo() })}
               variant="secondary"
               className={`rounded-r-none h-full ${isCameraMuted ? "bg-MainPinkMAM" : "bg-MainGreenMAM"}`}
             >
-              {isCameraMuted ? (<CameraOff className="w-5 h-5" />) : (<Camera className="w-5 h-5" />)}
+              {isCameraMuted ? <CameraOff className="w-5 h-5" /> : <Camera className="w-5 h-5" />}
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger>
@@ -176,48 +195,39 @@ function Footer({
               </DropdownMenuTrigger>
               <DropdownMenuContent>
                 <DropdownMenuRadioGroup value={selectedVideoInput}>
-                  {videoInputDevices.map((d) => (
-                    <DropdownMenuRadioItem
-                      value={d.label}
-                      key={d.deviceId}
-                      onClick={() => handleVideoChange(d.label)}
-                    >
-                      {d.label}
+                  {videoInputDevices.length === 0 ? (
+                    <DropdownMenuRadioItem value="none" disabled>
+                      Aucun périphérique détecté
                     </DropdownMenuRadioItem>
-                  ))}
+                  ) : (
+                    videoInputDevices.map((d) => (
+                      <DropdownMenuRadioItem
+                        value={d.label}
+                        key={d.deviceId}
+                        onClick={() => handleVideoChange(d.label)}
+                      >
+                        {d.label}
+                      </DropdownMenuRadioItem>
+                    ))
+                  )}
                 </DropdownMenuRadioGroup>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
 
-          <Button
-            className="h-full px-2 mx-2 bg-MainGreenMAM"
-            onClick={onScreenShare}
-          >
+          <Button className="h-full px-2 mx-2 bg-MainGreenMAM" onClick={onScreenShare}>
             Partage
           </Button>
         </div>
       </div>
 
-      {/* ← AJOUT : Section droite : Info utilisateur + Déconnexion */}
+      {/* Section droite : Info utilisateur + Déconnexion */}
       <div className="flex items-center gap-4 px-4">
-        {/* Informations utilisateur */}
         <div className="flex flex-col items-end">
-          <span className="text-sm font-medium text-white">
-            {user?.name || userName}
-          </span>
-          <span className="text-xs text-gray-400">
-            {user?.email}
-          </span>
+          <span className="text-sm font-medium text-white">{user?.name || userName}</span>
+          <span className="text-xs text-gray-400">{user?.email}</span>
         </div>
-
-        {/* Bouton déconnexion */}
-        <Button
-          onClick={logout}
-          variant="destructive"
-          className="flex items-center gap-2"
-          size="sm"
-        >
+        <Button onClick={logout} variant="destructive" className="flex items-center gap-2" size="sm">
           <LogOut className="w-4 h-4" />
           Déconnexion
         </Button>

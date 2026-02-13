@@ -18,7 +18,7 @@ import {
     useUnityInitialFocus,
     useUnityNewsStand,
     useUnityMedia,
-    useUnityProximityVoc
+    // ❌ useUnityProximityVoc supprimé — App.tsx gère le WebRTC via window events
 } from './hooks';
 
 // Components
@@ -44,17 +44,20 @@ interface UnityGameProps {
     conferenceUrl?: string;
     bbbRef?: React.RefObject<any>;
     userName?: string;
+    // Callbacks WebRTC branchés directement sur les events Unity
+    onJoinWebRTC?: (targetPlayerId: string) => void;
+    onLeaveWebRTC?: (targetPlayerId: string) => void;
 }
 
 function UnityGame({ 
     onChangeJitsiRoom, 
     conferenceUrl: webConferenceUrl,
     bbbRef: externalBbbRef,
-    userName 
+    userName,
+    onJoinWebRTC,
+    onLeaveWebRTC,
 }: UnityGameProps) {
-    // Unity context setup
-    //const baseUnity = "https://mam-virtuelle.s3.fr-par.scw.cloud/UnityBuild/Build/";
-    const baseUnity = "/UnityBuild/Build/"; // Use this for local builds
+    const baseUnity = "/UnityBuild/Build/";
     const buildName = "UnityBuild";
     
     const { 
@@ -74,7 +77,6 @@ function UnityGame({
     const bbbRef = useRef<any>(null);
     const finalBbbRef = externalBbbRef || bbbRef;
 
-    // Custom hooks - all modal and interaction logic extracted
     const tvModal = useUnityTV({
         addEventListener,
         removeEventListener,
@@ -152,17 +154,37 @@ function UnityGame({
         unityInstance: UNSAFE__unityInstance
     });
 
-    const proximityCall = useUnityProximityVoc({
-        addEventListener,
-        removeEventListener,
-        isLoaded,
-        unityInstance: UNSAFE__unityInstance
-    })
+    // ✅ useUnityProximityVoc supprimé d'ici
+    // La gestion WebRTC est faite dans App.tsx via :
+    //   window.addEventListener('JoinWebRTCStream', ...)
+    //   window.addEventListener('LeaveWebRTCStream', ...)
 
-    // Automatically focus Unity canvas on initial load
     useUnityInitialFocus({ isLoaded });
 
-    // Expose Unity instance globally for NameModal and other components
+    // Branche les callbacks WebRTC sur les événements Unity
+    // react-unity-webgl dispatche via son propre système, pas window
+    useEffect(() => {
+        if (!isLoaded) return;
+
+        const handleJoin = (targetPlayerId: string) => {
+            console.log('Unity: JoinWebRTCStream ->', targetPlayerId);
+            onJoinWebRTC?.(targetPlayerId);
+        };
+
+        const handleLeave = (targetPlayerId: string) => {
+            console.log('Unity: LeaveWebRTCStream ->', targetPlayerId);
+            onLeaveWebRTC?.(targetPlayerId ?? '');
+        };
+
+        addEventListener('JoinWebRTC', handleJoin);
+        addEventListener('LeaveWebRTC', handleLeave);
+
+        return () => {
+            removeEventListener('JoinWebRTC', handleJoin);
+            removeEventListener('LeaveWebRTC', handleLeave);
+        };
+    }, [isLoaded, addEventListener, removeEventListener, onJoinWebRTC, onLeaveWebRTC]);
+
     useEffect(() => {
         if (isLoaded && UNSAFE__unityInstance) {
             (window as any).UNSAFE__unityInstance = UNSAFE__unityInstance;
@@ -170,7 +192,6 @@ function UnityGame({
         }
     }, [isLoaded, UNSAFE__unityInstance]);
 
-    // Determine if any modal is open (to hide interaction prompt)
     const isAnyModalOpen = 
         tvModal.isOpen || 
         signModal.isOpen || 
@@ -183,16 +204,12 @@ function UnityGame({
     return (
         <div className="flex flex-col place-self-center bg-gradient-to-br from-[#212952] to-[#a9bcdb] bg-[url(/images/header_background.png)] bg-cover h-full w-full">
 
-
-            {/* Loading screen */}
             {!isLoaded && <LoadingScreen progress={loadingProgression} />}
 
-            {/* Unity container */}
             <div
                 ref={fullscreen.containerRef}
                 className={`relative flex-grow ${!isLoaded ? "hidden" : "block"}`}
             >
-                {/* Unity canvas */}
                 <Unity
                     id="unity-canvas"
                     unityProvider={unityProvider}
@@ -200,38 +217,24 @@ function UnityGame({
                     tabIndex={0}
                 />
 
-                {/* TV Modal */}
                 <TVModal {...tvModal} />
-
-                {/* Sign Modal */}
                 <SignModal {...signModal} />
-
-                {/* Conference iframe */}
                 <ConferenceIframe {...conference} />
-
-                {/* Library Desk Modal */}
                 <LibraryDeskModal {...libraryDeskModal} />
-
-                {/* News Stand Modal */}
                 <NewsStandModal {...newsStandModal} />
-
-                {/* Media/Poster Modal */}
                 <MediaModal {...mediaModal} />
 
-                {/* BBB Wrapper */}
                 <BBBWrapper 
                     ref={finalBbbRef}
                     roomName={roomName}
                     userName={userName}
                 />
 
-                {/* Settings Modal */}
                 <SettingsModal 
                     settingsHook={settingsHook} 
                     portalContainer={fullscreen.containerRef.current}
                 />
 
-                {/* Map Modal */}
                 <MapModal 
                     isOpen={mapHook.isOpen}
                     onClose={mapHook.closeMap}
@@ -240,12 +243,10 @@ function UnityGame({
                     currentSceneIndex={mapHook.currentSceneIndex}
                 />
 
-                {/* Only show when in Third Person View AND loaded */}
                 {isLoaded && !conference.isFullscreen && mapHook.currentSceneIndex > 1 && (
                     <CursorHelp isVisible={settingsHook.settings.viewType === EViewType.THIRD_PERSON} />
                 )}
 
-                {/* Camera Rotation Buttons - Only visible in Isometric view, after settings loaded */}
                 {isLoaded && !conference.isFullscreen && mapHook.currentSceneIndex > 1 && !isAnyModalOpen && !settingsHook.isLoading && (
                     <CameraRotationButtons
                         isLoaded={isLoaded}
@@ -254,12 +255,10 @@ function UnityGame({
                     />
                 )}
 
-                {/* Map Button - Displayed when no other blocking UI is active */}
                 {isLoaded && !conference.isFullscreen && mapHook.currentSceneIndex > 1 && !mapHook.isOpen && !isAnyModalOpen && (
                     <MapButton onClick={mapHook.openMap} />
                 )}
 
-                {/*Interaction Prompt - only show when no modal is open */}
                 {!isAnyModalOpen && mapHook.currentSceneIndex > 1 && (
                     <InteractionPrompt
                         isVisible={interactionPrompt.isVisible}
@@ -268,7 +267,6 @@ function UnityGame({
                     />
                 )}
 
-                {/* Fullscreen button */}
                 {isLoaded && !conference.isFullscreen && (
                     <FullscreenButton 
                         isFullscreen={fullscreen.isFullscreen}
@@ -276,7 +274,6 @@ function UnityGame({
                     />
                 )}
 
-                {/* Settings button (web-triggered) */}
                 {isLoaded && !conference.isFullscreen && mapHook.currentSceneIndex > 1 && !settingsHook.isOpen && (
                     <SettingsButton onClick={settingsHook.openModal} />
                 )}
