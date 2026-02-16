@@ -9,7 +9,7 @@ interface GameModalProps {
 }
 
 const GAME_URLS: Record<string, string> = {
-    Chess: 'http://localhost:3000',
+    Chess: import.meta.env.VITE_BACKEND_GAME_CHESS,
     // Connect4: 'http://localhost:3001',
 };
 
