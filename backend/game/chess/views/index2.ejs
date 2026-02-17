@@ -21,7 +21,7 @@
       .container {
         display: flex;
         flex-direction: column;
-        align-items: center;
+        align-items: stretch;
         justify-content: center;
         padding: 20px;
       }
@@ -60,15 +60,6 @@
         background-color: #0056b3;
       }
 
-      .grid-container {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-        gap: 20px;
-        width: 100%;
-        max-width: 1200px;
-        margin-top: 20px;
-      }
-
       .sidebar {
         background-color: #404040;
         color: #fff;
@@ -95,21 +86,22 @@
         font-size: 16px;
       }
 
-      .user-count{
+      .user-count {
         font-weight: lighter;
         color: #939393;
       }
 
       .turn-popup {
-        position: absolute;
-        top: 50%;
+        position: fixed;
         left: 50%;
-        transform: translate(-50%, -50%);
+        bottom: 10%;
+        transform: translateX(-50%);
         background-color: rgba(0, 0, 0, 0.8);
         color: white;
         padding: 10px 20px;
         border-radius: 5px;
         display: none;
+        z-index: 40;
       }
 
       .turn-popup.visible {
@@ -120,14 +112,14 @@
         background-color: #404040;
         color: #fff;
         padding: 20px;
-        border-radius: 8px; 
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); 
+        border-radius: 8px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
       }
 
       .chat-messages {
-        /*max-height: 200px;*/
         overflow-y: auto;
         margin-bottom: 10px;
+        max-height: 320px;
       }
 
       .chat-form {
@@ -173,8 +165,8 @@
         display: grid;
         grid-template-columns: repeat(8, minmax(0, 1fr));
         grid-template-rows: repeat(8, minmax(0, 1fr));
-        width: 100vw;
-        height: 100vw;
+        width: min(90vw, 600px);
+        height: min(90vw, 600px);
         max-width: 600px;
         max-height: 600px;
       }
@@ -256,11 +248,10 @@
         background-color: #c82333;
       }
 
-      /* Responsive styles */
       @media (max-width: 768px) {
-        .grid-container {
-          grid-template-columns: 1fr;
-          gap: 15px;
+        .container {
+          padding: 10px;
+          min-height: 100vh;
         }
 
         .chessboard {
@@ -279,10 +270,8 @@
           padding: 15px;
         }
 
-        .container {
-          padding: 10px;
-          height: auto;
-          min-height: 100vh;
+        .chat-messages {
+          max-height: 220px;
         }
       }
 
@@ -314,7 +303,7 @@
         }
 
         .chat-messages {
-          max-height: 150px;
+          max-height: 180px;
         }
 
         .chat-form input[type="text"] {
@@ -329,11 +318,11 @@
       }
     </style>
   </head>
-  <body class=" h-dvh" >
-    <div class="container mx-auto h-full">
-      <div
-        class="hidden"
-      >
+
+  <body class="h-dvh">
+    <div class="container mx-auto max-w-6xl h-full">
+      <!-- bloc lobby caché -->
+      <div class="hidden">
         <input
           id="username"
           type="text"
@@ -362,43 +351,54 @@
         </div>
       </div>
 
-
-      <div class="md:flex w-full gap-10 h-full">
-        <div class="flex-1 ">
-          <div class="flex flex-col items-center justify-center">
-            <div class="chessboard border border-black"></div>
-            <div class="status mt-2"></div>
-            <button id="resetButton" class="reset-button">Réinitialiser la partie</button>
+      <!-- layout principal -->
+      <div class="flex flex-col gap-6 md:flex-row md:items-stretch w-full h-full mt-2">
+        <!-- board -->
+        <div class="flex-1 flex justify-center">
+          <div class="board-container w-full md:w-auto">
+            <div class="chessboard border border-black mx-auto"></div>
+            <div class="status mt-2 text-center"></div>
+            <button id="resetButton" class="reset-button">
+              Réinitialiser la partie
+            </button>
             <div class="turn-popup"></div>
-            <div class="message"></div>
+            <div class="message mt-1 text-center"></div>
           </div>
         </div>
-        <div class="flex-2 flex flex-col gap-5">
-          <div class="sidebar flex-3">
-              <h2 class="text-xl font-bold mb-4">Joueurs <span class="user-count mt-2 ml-3"></span></h2>
-              <ul id="usersList" class="space-y-2"></ul>
+
+        <!-- sidebar + chat -->
+        <div class="flex-2 flex flex-col gap-4 md:max-w-sm w-full">
+          <div class="sidebar">
+            <h2 class="text-xl font-bold mb-4">
+              Joueurs
+              <span class="user-count mt-2 ml-3"></span>
+            </h2>
+            <ul id="usersList" class="space-y-2"></ul>
           </div>
-          <div class="chat-container flex-1" >
+
+          <div class="chat-container flex-1 flex flex-col">
             <h2 class="text-xl font-bold mb-4">Chat</h2>
-            <div class="flex flex-col">
+            <div class="flex flex-col flex-1">
               <div class="chat-messages grow"></div>
 
-
-              <form id="chatForm" class="chat-form flex-none">
+              <form id="chatForm" class="chat-form flex-none mt-2">
                 <input
-                id="chatInput"
-                type="text"
-                placeholder="Tapez votre message..."
-                autocomplete="off"
+                  id="chatInput"
+                  type="text"
+                  placeholder="Tapez votre message..."
+                  autocomplete="off"
+                  class="w-full"
                 />
-                <button type="submit" class="button">Envoyer</button>
+                <button type="submit" class="button ml-2">
+                  Envoyer
+                </button>
               </form>
             </div>
           </div>
         </div>
-
       </div>
     </div>
+
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
     <script src="/javascripts/script.js"></script>

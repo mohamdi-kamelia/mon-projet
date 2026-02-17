@@ -15,7 +15,7 @@ app.set("view engine", "ejs");
 app.use(express.static(path.join(__dirname, "public")));
 
 app.get("/", (req, res) => {
-  res.render("index", { title: "Chess Game" });
+  res.render("index", { title: "Jeu d'échecs" });
 });
 
 io.on("connection", function (uniquesocket) {
@@ -196,11 +196,11 @@ const getUsersInRoom = (roomName) => {
 
   const users = [];
   if (room.players.white)
-    users.push({ username: room.players.white.username, role: "White" });
+    users.push({ username: room.players.white.username, role: "Blanc" });
   if (room.players.black)
-    users.push({ username: room.players.black.username, role: "Black" });
+    users.push({ username: room.players.black.username, role: "Noir" });
   room.spectators.forEach((spectator) =>
-    users.push({ username: spectator.username, role: "Spectator" })
+    users.push({ username: spectator.username, role: "Spectateur" })
   );
 
   return users;

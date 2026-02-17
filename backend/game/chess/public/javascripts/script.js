@@ -222,7 +222,7 @@ socket.on("move", (move) => {
 });
 
 socket.on("userCount", (count) => {
-  userCountElement.textContent = `Online users: ${count}`;
+  userCountElement.textContent = `Utilisateurs connectés: ${count}`;
 });
 
 socket.on("updateUsers", (users) => {
