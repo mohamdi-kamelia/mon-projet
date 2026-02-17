@@ -8,10 +8,7 @@ import { Webrtc } from './components/Webrtc';
 import { useRef, useState, useCallback, useEffect } from 'react';
 import { useAuth } from './contexts/AuthContext';
 
-// URL relative : Vite proxifie /ws vers ws://localhost:8080/ws
-// URL relative : passe toujours par le proxy Vite (vite.config.ts /ws -> ws://localhost:8080)
-// Vite proxifie la connexion wss -> ws, le backend Go n'a pas besoin de TLS
-const WS_URL = import.meta.env.VITE_WS_URL ?? '/ws';
+const WS_URL = import.meta.env.VITE_WS_URL ?? 'api/ws';
 
 function UnityGameWithFooter() {
   const jitsiRef = useRef<any>(null);
@@ -22,7 +19,10 @@ function UnityGameWithFooter() {
   const [playerDistances, setPlayerDistances] = useState<Map<string, number>>(new Map());
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // WebSocket avec reconnexion automatique
+  const lastConnectedUnityIdRef = useRef<string>('');
+  const joinDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastJoinTargetRef = useRef<string>('');
+
   useEffect(() => {
     if (!user) return;
 
@@ -65,11 +65,24 @@ function UnityGameWithFooter() {
     };
   }, [user]);
 
-  // Callbacks passes a UnityGame
-  // react-unity-webgl dispatche ses evenements en interne (pas via window)
-  // donc on passe les handlers directement a UnityGame qui a acces a addEventListener Unity
   const handleJoinWebRTC = useCallback((targetPlayerId: string) => {
     console.log('Unity: JoinWebRTCStream ->', targetPlayerId);
+    if (!targetPlayerId) return;
+
+    if (joinDebounceRef.current && lastJoinTargetRef.current === targetPlayerId) {
+      console.log('[WebRTC] JoinWebRTC dupliqué ignoré pour', targetPlayerId);
+      return;
+    }
+
+    lastJoinTargetRef.current = targetPlayerId;
+    lastConnectedUnityIdRef.current = targetPlayerId;
+
+    if (joinDebounceRef.current) clearTimeout(joinDebounceRef.current);
+    joinDebounceRef.current = setTimeout(() => {
+      joinDebounceRef.current = null;
+      lastJoinTargetRef.current = '';
+    }, 500);
+
     if (ws && ws.readyState === WebSocket.OPEN && user) {
       ws.send(JSON.stringify({
         type: 'proximity_connect',
@@ -81,12 +94,20 @@ function UnityGameWithFooter() {
   }, [ws, user]);
 
   const handleLeaveWebRTC = useCallback((targetPlayerId: string) => {
-    console.log('Unity: LeaveWebRTCStream ->', targetPlayerId);
-    if (ws && ws.readyState === WebSocket.OPEN && user) {
+    const target = targetPlayerId || lastConnectedUnityIdRef.current;
+    console.log('Unity: LeaveWebRTCStream ->', target);
+    lastConnectedUnityIdRef.current = '';
+    lastJoinTargetRef.current = '';
+    if (joinDebounceRef.current) {
+      clearTimeout(joinDebounceRef.current);
+      joinDebounceRef.current = null;
+    }
+
+    if (ws && ws.readyState === WebSocket.OPEN && user && target) {
       ws.send(JSON.stringify({
         type: 'proximity_disconnect',
         playerId: user.id.toString(),
-        targetPlayerId,
+        targetPlayerId: target,
         distance: 10.0,
       }));
     }
@@ -122,8 +143,12 @@ function UnityGameWithFooter() {
             onJoinWebRTC={handleJoinWebRTC}
             onLeaveWebRTC={handleLeaveWebRTC}
           />
+        </div>
+      </div>
 
-          {user && ws && (
+      {user && ws && (
+        <div className="fixed top-5 right-5 z-[9999] pointer-events-none">
+          <div className="pointer-events-auto">
             <Webrtc
               ws={ws}
               playerId={user.id.toString()}
@@ -132,9 +157,9 @@ function UnityGameWithFooter() {
               videoPosition="top-right"
               enabled={true}
             />
-          )}
+          </div>
         </div>
-      </div>
+      )}
 
       <footer className="w-full bg-gray-900 text-white flex-shrink-0">
         <Footer
@@ -159,33 +184,9 @@ function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          <Route
-            path="/login"
-            element={
-              <PublicRoute>
-                <LoginPage />
-              </PublicRoute>
-            }
-          />
-
-          <Route
-            path="/forgot-password"
-            element={
-              <PublicRoute>
-                <ForgotPasswordPage />
-              </PublicRoute>
-            }
-          />
-
-          <Route
-            path="/"
-            element={
-              <PrivateRoute>
-                <UnityGameWithFooter />
-              </PrivateRoute>
-            }
-          />
-
+          <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
+          <Route path="/forgot-password" element={<PublicRoute><ForgotPasswordPage /></PublicRoute>} />
+          <Route path="/" element={<PrivateRoute><UnityGameWithFooter /></PrivateRoute>} />
           <Route path="*" element={<LoginPage />} />
         </Routes>
       </BrowserRouter>

@@ -19,14 +19,25 @@ export class PeerConnectionManager {
     const pc = new RTCPeerConnection(WEBRTC_CONFIG);
 
     pc.onicecandidate = (event) => {
-      if (event.candidate) {
-        callbacks.onIceCandidate(event.candidate);
-      }
+      if (event.candidate) callbacks.onIceCandidate(event.candidate);
     };
 
+    const remoteStream = new MediaStream();
+    const addedTrackIds = new Set<string>();
+
     pc.ontrack = (event) => {
-      const [remoteStream] = event.streams;
-      callbacks.onTrack(remoteStream);
+      const track = event.track;
+      console.log(`[PeerConn] Track reçu de ${remotePlayerId}: ${track.kind} (${track.id})`);
+
+      if (!addedTrackIds.has(track.id)) {
+        remoteStream.addTrack(track);
+        addedTrackIds.add(track.id);
+        callbacks.onTrack(remoteStream);
+      }
+
+      track.onended = () => {
+        try { remoteStream.removeTrack(track); } catch {}
+      };
     };
 
     pc.onconnectionstatechange = () => {

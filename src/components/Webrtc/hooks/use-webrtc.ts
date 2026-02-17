@@ -1,24 +1,35 @@
 import { useEffect, useRef, useState } from 'react';
 import { WebRTCClient } from '../../../lib/webrtc/WebRTCClient';
-import type { Vector3 } from '@/lib/webrtc/types';
 
 interface UseWebRTCOptions {
   ws: WebSocket | null;
   playerId: string;
+  unityId?: string;
   enabled?: boolean;
 }
 
-export function useWebRTC({ ws, playerId, enabled = true }: UseWebRTCOptions) {
+export function useWebRTC({ ws, playerId, unityId, enabled = true }: UseWebRTCOptions) {
   const [isInitialized, setIsInitialized] = useState(false);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
   const [error, setError] = useState<Error | null>(null);
-  
+
   const clientRef = useRef<WebRTCClient | null>(null);
 
   useEffect(() => {
-    if (!ws || !playerId || !enabled) return;
+    if (!ws || !playerId || !unityId) return;
+    if (ws.readyState !== WebSocket.OPEN) return;
 
+    console.log(`[WebRTC] Registering Unity ID: ${unityId} for player ${playerId}`);
+    ws.send(JSON.stringify({
+      type: 'register_unity_id',
+      playerId,
+      unityId,
+    }));
+  }, [ws, playerId, unityId]);
+
+  useEffect(() => {
+    if (!ws || !playerId || !enabled) return;
     const client = new WebRTCClient(ws, playerId);
 
     client.onStreamAdded((id, stream) => {

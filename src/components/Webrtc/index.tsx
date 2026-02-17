@@ -5,7 +5,8 @@ import { VideoOverlay } from './VideoOverlay';
 
 interface WebrtcProps {
   ws: WebSocket | null;
-  playerId: string;
+  playerId: string;       
+  unityId?: string;       
   getPlayerPosition: () => Vector3;
   getPlayerDistance: (playerId: string) => number;
   videoPosition?: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left';
@@ -15,6 +16,7 @@ interface WebrtcProps {
 export function Webrtc({
   ws,
   playerId,
+  unityId,             
   getPlayerDistance,
   videoPosition = 'top-right',
   enabled = true,
@@ -22,9 +24,9 @@ export function Webrtc({
   const { localStream, remoteStreams, isInitialized, error } = useWebRTC({
     ws,
     playerId,
+    unityId,             
     enabled,
   });
-
 
   useProximityAudio({
     remoteStreams,

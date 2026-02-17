@@ -1,10 +1,12 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
+import basicSsl from "@vitejs/plugin-basic-ssl";
 
 export default defineConfig({
   plugins: [
     react(),
+    basicSsl(), 
   ],
   resolve: {
     alias: {
@@ -12,15 +14,15 @@ export default defineConfig({
     },
   },
   server: {
-  host: "0.0.0.0",
-  port: 5173,
-  proxy: {
-    "/ws": {
-      target: "ws://localhost:8080",
-      ws: true,
-      changeOrigin: true,
-      rewrite: (path) => path,
+    host: "0.0.0.0",
+    port: 5173,
+    https: true, 
+    proxy: {
+      "/api": {
+        target: "http://localhost:8080", 
+        changeOrigin: true,
+        ws: true, 
+      },
     },
   },
-},
 });
