@@ -28,13 +28,13 @@ export const DEFAULT_SETTINGS: SettingsState = {
 export const SLIDER_CONSTRAINTS = {
     zoomSensitivity: {
         min: 0.01,
-        max: 3.0,
+        max: 2.0,
         step: 0.01
     },
     cameraSensitivity: {
         min: 0.1,
-        max: 5.0,
-        step: 0.1
+        max: 1.5,
+        step: 0.01
     },
     volume: {
         min: 0,
