@@ -23,9 +23,6 @@ export function LocalVideo({ stream, className = '' }: LocalVideoProps) {
         muted
         className="w-full h-full object-cover"
       />
-      <span className="absolute bottom-1 left-1 bg-black/70 text-white px-1.5 py-0.5 rounded text-xs font-medium">
-        You
-      </span>
     </div>
   );
 }

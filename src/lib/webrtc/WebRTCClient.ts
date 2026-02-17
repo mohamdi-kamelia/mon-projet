@@ -91,8 +91,10 @@ export class WebRTCClient {
       },
     });
 
+    // Seul le plus petit ID initie l’offer (évite collision)
     if (this.localPlayerId < targetPlayerID) {
       try {
+        // IMPORTANT : local tracks déjà ajoutées dans createConnection()
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
         this.signalingClient.sendOffer(targetPlayerID, pc.localDescription);
@@ -130,6 +132,7 @@ export class WebRTCClient {
 
     let pc = this.peerManager.getConnection(fromPlayer);
 
+    // si une connexion existe déjà, on la reset proprement
     if (pc) {
       const state = pc.signalingState;
       if (state === 'stable' && pc.connectionState === 'connected') {
@@ -184,17 +187,20 @@ export class WebRTCClient {
       return;
     }
 
+    // ✅ anti doublon dur
     if (this.answerApplied.has(fromPlayer)) {
       console.warn(`[WebRTC] Answer dupliqué ignoré de ${fromPlayer}`);
       return;
     }
 
+    // si déjà stable, on ignore (connexion déjà OK)
     if (pc.signalingState === 'stable') {
       console.warn(`[WebRTC] Answer ignoré - déjà stable avec ${fromPlayer}`);
       this.answerApplied.add(fromPlayer);
       return;
     }
 
+    // seul état attendu pour appliquer une answer
     if (pc.signalingState !== 'have-local-offer') {
       console.warn(`[WebRTC] Answer ignoré, état: ${pc.signalingState}`);
       return;
@@ -205,6 +211,7 @@ export class WebRTCClient {
       this.answerApplied.add(fromPlayer);
       console.log(`[WebRTC] Answer appliqué de ${fromPlayer}`);
     } catch (error: any) {
+      // ✅ fix race condition : l’état peut redevenir stable juste avant l’appel
       if (error?.name === 'InvalidStateError' && pc.signalingState === 'stable') {
         console.warn(`[WebRTC] Answer ignoré (race) - stable avec ${fromPlayer}`);
         this.answerApplied.add(fromPlayer);
@@ -229,6 +236,11 @@ export class WebRTCClient {
     } catch (error) {
       console.error('Error adding ICE candidate:', error);
     }
+  }
+
+  // ✅ Rejoue un message reçu avant que le client soit initialisé
+  replayMessage(event: MessageEvent): void {
+    this.handleMessage(event);
   }
 
   cleanup(): void {

@@ -17,9 +17,12 @@ export function VideoOverlay({
 }: VideoOverlayProps) {
   const remoteArray = Array.from(remoteStreams.entries()).slice(0, maxVisible);
 
+  if (remoteArray.length === 0) return null;
+
   return (
-    <div className="flex flex-col gap-2.5 max-h-[calc(100vh-80px)] overflow-y-auto">
+    <div className="flex flex-row-reverse gap-2.5">
       {localStream && <LocalVideo stream={localStream} />}
+
       {remoteArray.map(([playerId, stream]) => (
         <RemoteVideo
           key={playerId}

@@ -5,129 +5,28 @@ import { LoginPage, ForgotPasswordPage } from './pages/auth';
 import UnityGame from './components/UnityGame/UnityGame';
 import Footer from './components/Footer';
 import { Webrtc } from './components/Webrtc';
-import { useRef, useState, useCallback, useEffect } from 'react';
+import { useRef, useCallback } from 'react';
 import { useAuth } from './contexts/AuthContext';
-
-const WS_URL = import.meta.env.VITE_WS_URL ?? 'api/ws';
+import { useWebSocket } from './hooks/webRTC/use-websocket';
+import { useProximity } from './hooks/webRTC/use-proximity';
+import { useWebRTCControls } from './hooks/webRTC/use-webrtc-controls';
 
 function UnityGameWithFooter() {
   const jitsiRef = useRef<any>(null);
-  const [roomName, setRoomName] = useState<string>("");
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
 
-  const [ws, setWs] = useState<WebSocket | null>(null);
-  const [playerDistances, setPlayerDistances] = useState<Map<string, number>>(new Map());
-  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const ws = useWebSocket();
+  const { handleJoinWebRTC, handleLeaveWebRTC } = useProximity(ws);
+  const { setLocalStream, toggleMic, toggleCamera } = useWebRTCControls();
 
-  const lastConnectedUnityIdRef = useRef<string>('');
-  const joinDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastJoinTargetRef = useRef<string>('');
-
-  useEffect(() => {
-    if (!user) return;
-
-    let websocket: WebSocket;
-    let cancelled = false;
-
-    const connect = () => {
-      if (cancelled) return;
-
-      websocket = new WebSocket(WS_URL);
-
-      websocket.onopen = () => {
-        console.log('WebSocket connecte');
-        websocket.send(JSON.stringify({
-          type: 'join',
-          playerId: user.id.toString(),
-        }));
-        setWs(websocket);
-      };
-
-      websocket.onclose = () => {
-        console.log('WebSocket deconnecte - reconnexion dans 3s...');
-        setWs(null);
-        if (!cancelled) {
-          reconnectTimerRef.current = setTimeout(connect, 3000);
-        }
-      };
-
-      websocket.onerror = (error) => {
-        console.error('WebSocket error:', error);
-      };
-    };
-
-    connect();
-
-    return () => {
-      cancelled = true;
-      if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
-      websocket?.close();
-    };
-  }, [user]);
-
-  const handleJoinWebRTC = useCallback((targetPlayerId: string) => {
-    console.log('Unity: JoinWebRTCStream ->', targetPlayerId);
-    if (!targetPlayerId) return;
-
-    if (joinDebounceRef.current && lastJoinTargetRef.current === targetPlayerId) {
-      console.log('[WebRTC] JoinWebRTC dupliqué ignoré pour', targetPlayerId);
-      return;
-    }
-
-    lastJoinTargetRef.current = targetPlayerId;
-    lastConnectedUnityIdRef.current = targetPlayerId;
-
-    if (joinDebounceRef.current) clearTimeout(joinDebounceRef.current);
-    joinDebounceRef.current = setTimeout(() => {
-      joinDebounceRef.current = null;
-      lastJoinTargetRef.current = '';
-    }, 500);
-
-    if (ws && ws.readyState === WebSocket.OPEN && user) {
-      ws.send(JSON.stringify({
-        type: 'proximity_connect',
-        playerId: user.id.toString(),
-        targetPlayerId,
-        distance: 4.0,
-      }));
-    }
-  }, [ws, user]);
-
-  const handleLeaveWebRTC = useCallback((targetPlayerId: string) => {
-    const target = targetPlayerId || lastConnectedUnityIdRef.current;
-    console.log('Unity: LeaveWebRTCStream ->', target);
-    lastConnectedUnityIdRef.current = '';
-    lastJoinTargetRef.current = '';
-    if (joinDebounceRef.current) {
-      clearTimeout(joinDebounceRef.current);
-      joinDebounceRef.current = null;
-    }
-
-    if (ws && ws.readyState === WebSocket.OPEN && user && target) {
-      ws.send(JSON.stringify({
-        type: 'proximity_disconnect',
-        playerId: user.id.toString(),
-        targetPlayerId: target,
-        distance: 10.0,
-      }));
-    }
-  }, [ws, user]);
-
-  const getPlayerPosition = useCallback(() => {
-    return { x: 0, y: 0, z: 0 };
-  }, []);
-
-  const getPlayerDistance = useCallback((playerId: string) => {
-    return playerDistances.get(playerId) ?? 5.0;
-  }, [playerDistances]);
+  const getPlayerPosition = useCallback(() => ({ x: 0, y: 0, z: 0 }), []);
+  const getPlayerDistance = useCallback((_playerId: string) => 5.0, []);
 
   const handleChangeRoom = useCallback((newRoom: string) => {
-    setRoomName(newRoom);
-    console.log("App: Room changed to:", newRoom);
+    console.log('App: Room changed to:', newRoom);
   }, []);
 
   const handleChangeUserName = useCallback((newUserName: string) => {
-    console.log("UserName Change ! " + newUserName);
     jitsiRef.current?.userNameChange(newUserName);
   }, []);
 
@@ -147,7 +46,7 @@ function UnityGameWithFooter() {
       </div>
 
       {user && ws && (
-        <div className="fixed top-5 right-5 z-[9999] pointer-events-none">
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[9999] pointer-events-none">
           <div className="pointer-events-auto">
             <Webrtc
               ws={ws}
@@ -156,6 +55,7 @@ function UnityGameWithFooter() {
               getPlayerDistance={getPlayerDistance}
               videoPosition="top-right"
               enabled={true}
+              onLocalStream={setLocalStream}
             />
           </div>
         </div>
@@ -163,16 +63,12 @@ function UnityGameWithFooter() {
 
       <footer className="w-full bg-gray-900 text-white flex-shrink-0">
         <Footer
-          onMute={() => jitsiRef.current?.toggleAudio()}
-          onVideo={() => jitsiRef.current?.toggleVideo()}
-          onScreenShare={() => jitsiRef.current?.toggleShareScreen()}
-          OnAudioInputChange={(deviceName: string) => jitsiRef.current?.setAudioInput(deviceName)}
-          OnVideoInputChange={(deviceName: string) => jitsiRef.current?.setVideoInput(deviceName)}
+          onMute={toggleMic}
+          onVideo={toggleCamera}
           OnUserNameChange={handleChangeUserName}
-          onGetApi={() => jitsiRef.current?.getApi()}
           userName={user?.name || ""}
-          onForceJoin={() => handleChangeRoom("test" + Date.now())}
-          onForceQuit={() => jitsiRef.current?.leaveRoom()}
+          userEmail={user?.email || ""}
+          onLogout={logout}
         />
       </footer>
     </div>

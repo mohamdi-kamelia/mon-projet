@@ -1,39 +1,33 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { WebRTCClient } from '../../../lib/webrtc/WebRTCClient';
 
 interface UseWebRTCOptions {
   ws: WebSocket | null;
   playerId: string;
-  unityId?: string;
   enabled?: boolean;
 }
 
-export function useWebRTC({ ws, playerId, unityId, enabled = true }: UseWebRTCOptions) {
+export function useWebRTC({ ws, playerId, enabled = true }: UseWebRTCOptions) {
   const [isInitialized, setIsInitialized] = useState(false);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
   const [error, setError] = useState<Error | null>(null);
 
   const clientRef = useRef<WebRTCClient | null>(null);
+  const initializingRef = useRef(false);
+  const pendingMessagesRef = useRef<MessageEvent[]>([]);
 
-  useEffect(() => {
-    if (!ws || !playerId || !unityId) return;
-    if (ws.readyState !== WebSocket.OPEN) return;
+  const initializeOnDemand = useCallback(async () => {
+    if (initializingRef.current || clientRef.current) return;
+    if (!ws || !playerId) return;
 
-    console.log(`[WebRTC] Registering Unity ID: ${unityId} for player ${playerId}`);
-    ws.send(JSON.stringify({
-      type: 'register_unity_id',
-      playerId,
-      unityId,
-    }));
-  }, [ws, playerId, unityId]);
+    initializingRef.current = true;
+    console.log('[WebRTC] Initialisation caméra/micro (première proximité)');
 
-  useEffect(() => {
-    if (!ws || !playerId || !enabled) return;
     const client = new WebRTCClient(ws, playerId);
 
     client.onStreamAdded((id, stream) => {
-      setRemoteStreams((prev) => {
+      setRemoteStreams(prev => {
         const next = new Map(prev);
         next.set(id, stream);
         return next;
@@ -41,30 +35,67 @@ export function useWebRTC({ ws, playerId, unityId, enabled = true }: UseWebRTCOp
     });
 
     client.onStreamRemoved((id) => {
-      setRemoteStreams((prev) => {
+      setRemoteStreams(prev => {
         const next = new Map(prev);
         next.delete(id);
         return next;
       });
     });
 
-    client
-      .initialize()
-      .then((stream) => {
-        setLocalStream(stream);
-        setIsInitialized(true);
-      })
-      .catch((err) => {
-        console.error('Failed to initialize WebRTC:', err);
-        setError(err);
+    try {
+      const stream = await client.initialize();
+      setLocalStream(stream);
+      setIsInitialized(true);
+      clientRef.current = client;
+
+      console.log(`[WebRTC] Replay de ${pendingMessagesRef.current.length} messages en attente`);
+      pendingMessagesRef.current.forEach(event => {
+        client.replayMessage(event);
       });
+      pendingMessagesRef.current = [];
 
-    clientRef.current = client;
+      console.log('[WebRTC] ✅ Prêt');
+    } catch (err: any) {
+      console.error('[WebRTC] Échec initialisation:', err);
+      setError(err);
+    } finally {
+      initializingRef.current = false;
+    }
+  }, [ws, playerId]);
 
-    return () => {
-      client.cleanup();
+  useEffect(() => {
+    if (!ws || !playerId || !enabled) return;
+
+    const handleMessage = (event: MessageEvent) => {
+      try {
+        const msg = JSON.parse(event.data);
+        if (clientRef.current) return;
+
+        if (msg.type === 'webrtc_connect') {
+          // Mémorise le message et lance l'init
+          pendingMessagesRef.current.push(event);
+          initializeOnDemand();
+        } else if (msg.type === 'webrtc_offer' || msg.type === 'webrtc_answer' || msg.type === 'webrtc_ice') {
+          // Mémorise les messages signaling qui arrivent pendant l'init
+          if (initializingRef.current) {
+            pendingMessagesRef.current.push(event);
+          }
+        }
+      } catch {}
     };
-  }, [ws, playerId, enabled]);
+
+    ws.addEventListener('message', handleMessage);
+    return () => ws.removeEventListener('message', handleMessage);
+  }, [ws, playerId, enabled, initializeOnDemand]);
+
+  useEffect(() => {
+    return () => {
+      clientRef.current?.cleanup();
+      clientRef.current = null;
+      initializingRef.current = false;
+      pendingMessagesRef.current = [];
+    };
+  }, []);
 
   return {
     isInitialized,
