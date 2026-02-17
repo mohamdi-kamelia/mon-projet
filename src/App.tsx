@@ -46,7 +46,7 @@ function UnityGameWithFooter() {
       </div>
 
       {user && ws && (
-        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[9999] pointer-events-none">
+        <div className="fixed bottom-20 right-5 z-[9999] pointer-events-none">
           <div className="pointer-events-auto">
             <Webrtc
               ws={ws}

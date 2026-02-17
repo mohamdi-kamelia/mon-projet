@@ -12,6 +12,7 @@ export function useWebRTC({ ws, playerId, enabled = true }: UseWebRTCOptions) {
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
   const [error, setError] = useState<Error | null>(null);
+  const [targetPlayerId, setTargetPlayerId] = useState<string>(''); // ✅ exposé
 
   const clientRef = useRef<WebRTCClient | null>(null);
   const initializingRef = useRef(false);
@@ -69,15 +70,27 @@ export function useWebRTC({ ws, playerId, enabled = true }: UseWebRTCOptions) {
     const handleMessage = (event: MessageEvent) => {
       try {
         const msg = JSON.parse(event.data);
-        if (clientRef.current) return;
 
         if (msg.type === 'webrtc_connect') {
-          // Mémorise le message et lance l'init
-          pendingMessagesRef.current.push(event);
-          initializeOnDemand();
-        } else if (msg.type === 'webrtc_offer' || msg.type === 'webrtc_answer' || msg.type === 'webrtc_ice') {
-          // Mémorise les messages signaling qui arrivent pendant l'init
-          if (initializingRef.current) {
+          // ✅ Stocke le targetPlayerId dès la connexion
+          const data = typeof msg.data === 'string' ? JSON.parse(msg.data) : msg.data;
+          if (data?.targetPlayerID) {
+            setTargetPlayerId(data.targetPlayerID);
+          }
+
+          if (!clientRef.current) {
+            pendingMessagesRef.current.push(event);
+            initializeOnDemand();
+          }
+        } else if (msg.type === 'webrtc_disconnect') {
+          // ✅ Reset targetPlayerId à la déconnexion
+          setTargetPlayerId('');
+        } else if (
+          msg.type === 'webrtc_offer' ||
+          msg.type === 'webrtc_answer' ||
+          msg.type === 'webrtc_ice'
+        ) {
+          if (!clientRef.current && initializingRef.current) {
             pendingMessagesRef.current.push(event);
           }
         }
@@ -102,6 +115,7 @@ export function useWebRTC({ ws, playerId, enabled = true }: UseWebRTCOptions) {
     localStream,
     remoteStreams,
     error,
+    targetPlayerId, 
     client: clientRef.current,
   };
 }

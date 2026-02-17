@@ -16,7 +16,7 @@ export function useWebRTCControls() {
 
     audioTrack.enabled = !audioTrack.enabled;
     console.log(`[WebRTC] Micro ${audioTrack.enabled ? 'activé' : 'coupé'}`);
-    return !audioTrack.enabled; // true = muté
+    return !audioTrack.enabled; 
   }, []);
 
   const toggleCamera = useCallback((): boolean => {
@@ -28,7 +28,7 @@ export function useWebRTCControls() {
 
     videoTrack.enabled = !videoTrack.enabled;
     console.log(`[WebRTC] Caméra ${videoTrack.enabled ? 'activée' : 'coupée'}`);
-    return !videoTrack.enabled; // true = muté
+    return !videoTrack.enabled; 
   }, []);
 
   return { setLocalStream, toggleMic, toggleCamera };
