@@ -28,7 +28,7 @@ function UnityGameWithFooter() {
         <div className="flex-1 min-w-0 relative bg-gray-100">
           <UnityGame 
             onChangeJitsiRoom={handleChangeRoom}
-            conferenceUrl="https://stream.warlockproduction.fr/hls/live/mamvirtuelle/index.m3u8"
+            conferenceUrl="https://phm.cdnvideo.phm.education.gouv.fr/79b6d082f124/smil:mystreamhd.smil/playlist.m3u8"
             bbbRef={jitsiRef}
             userName={user?.name || ""} // ← Passer le nom de l'utilisateur connecté
           />

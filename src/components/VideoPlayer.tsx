@@ -15,7 +15,7 @@ function VideoPlayer({url} : {url : string}) {
     async function checkLive() {
       try {
         const res = await fetch("https://stream.warlockproduction.fr/api/v3/paths/get/live/mamvirtuelle", { method: 'GET', cache: 'no-store' });
-        const ok = res.ok;
+        const ok = true //res.ok;
         if (!cancelled) {
           if (ok && !isLive) {
             setTimeout(() => {
