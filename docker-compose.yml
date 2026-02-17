@@ -34,5 +34,13 @@ services:
       - auth-data:/root/
     restart: unless-stopped
 
+  chess:
+    build:
+      context: ./backend/game/chess
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+
 volumes:
   auth-data:
