@@ -21,9 +21,8 @@
       .container {
         display: flex;
         flex-direction: column;
-        align-items: center;
+        align-items: stretch;
         justify-content: center;
-        height: 100vh;
         padding: 20px;
       }
 
@@ -61,15 +60,6 @@
         background-color: #0056b3;
       }
 
-      .grid-container {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-        gap: 20px;
-        width: 100%;
-        max-width: 1200px;
-        margin-top: 20px;
-      }
-
       .sidebar {
         background-color: #404040;
         color: #fff;
@@ -96,16 +86,19 @@
         font-size: 16px;
       }
 
+      .user-count {
+        font-weight: lighter;
+        color: #939393;
+      }
+
       .turn-popup {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
+        position: fixed;
         background-color: rgba(0, 0, 0, 0.8);
         color: white;
         padding: 10px 20px;
         border-radius: 5px;
         display: none;
+        z-index: 40;
       }
 
       .turn-popup.visible {
@@ -121,7 +114,6 @@
       }
 
       .chat-messages {
-        max-height: 200px;
         overflow-y: auto;
         margin-bottom: 10px;
       }
@@ -129,6 +121,7 @@
       .chat-form {
         display: flex;
         align-items: center;
+        justify-self: end;
       }
 
       .chat-form input[type="text"] {
@@ -168,10 +161,10 @@
         display: grid;
         grid-template-columns: repeat(8, minmax(0, 1fr));
         grid-template-rows: repeat(8, minmax(0, 1fr));
-        width: 100vw;
-        height: 100vw;
-        max-width: 400px;
-        max-height: 400px;
+        width: auto;
+        height: min(90vw, 600px);
+        max-width: 600px;
+        max-height: 600px;
       }
 
       .piece.white {
@@ -251,11 +244,10 @@
         background-color: #c82333;
       }
 
-      /* Responsive styles */
       @media (max-width: 768px) {
-        .grid-container {
-          grid-template-columns: 1fr;
-          gap: 15px;
+        .container {
+          padding: 10px;
+          min-height: 100vh;
         }
 
         .chessboard {
@@ -274,10 +266,8 @@
           padding: 15px;
         }
 
-        .container {
-          padding: 10px;
-          height: auto;
-          min-height: 100vh;
+        .chat-messages {
+          max-height: 220px;
         }
       }
 
@@ -309,7 +299,7 @@
         }
 
         .chat-messages {
-          max-height: 150px;
+          max-height: 180px;
         }
 
         .chat-form input[type="text"] {
@@ -321,14 +311,47 @@
           padding: 10px 16px;
           font-size: 14px;
         }
+
+        @keyframes popIn {
+          0% { opacity: 0; transform: translate(-50%, -50%) scale(0.92); }
+          100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        }
+        .turn-popup.visible {
+          display: block;
+          animation: popIn 180ms ease-out;
+        }
+
+
+        @keyframes winGlow {
+          0% { box-shadow: 0 0 0 rgba(110,181,255,0); transform: translateY(0); }
+          50% { box-shadow: 0 0 26px rgba(110,181,255,0.55); transform: translateY(-2px); }
+          100% { box-shadow: 0 0 0 rgba(110,181,255,0); transform: translateY(0); }
+        }
+
+        .message.win {
+          display: inline-block;
+          padding: 10px 14px;
+          border-radius: 10px;
+          background: rgba(110,181,255,0.15);
+          border: 1px solid rgba(110,181,255,0.35);
+          animation: winGlow 900ms ease-out 1;
+        }
+
+        .message.draw {
+          display: inline-block;
+          padding: 10px 14px;
+          border-radius: 10px;
+          background: rgba(255,255,255,0.08);
+          border: 1px solid rgba(255,255,255,0.18);
+        }
       }
     </style>
   </head>
-  <body>
-    <div class="container mx-auto">
-      <div
-        class="flex justify-center items-center flex-col max-w-screen-md px-5"
-      >
+
+  <body class="h-dvh">
+    <div class="container mx-auto max-w-6xl h-full">
+      <!-- bloc lobby caché -->
+      <div class="hidden">
         <input
           id="username"
           type="text"
@@ -356,34 +379,63 @@
           </button>
         </div>
       </div>
-      <div class="grid-container">
-        <div class="sidebar">
-          <h2 class="text-xl font-bold mb-4">Users Panel</h2>
-          <ul id="usersList" class="space-y-2"></ul>
+
+      <!-- layout principal -->
+      <div class="flex flex-col gap-6 md:flex-row md:items-stretch w-full h-full mt-2">
+        <!-- board -->
+        <div class="flex-1 flex justify-center">
+          <div class="board-container w-full md:w-auto">
+            
+            <div class="relative">
+              <div class="status mt-2 text-center"></div>
+              <div class="chessboard aspect-square border border-black mx-auto"></div>
+
+              <!-- Turn popup centré sur l'échiquier -->
+              <div
+                class="turn-popup pointer-events-none absolute w-[60%] left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2
+                      px-5 py-3 rounded-lg bg-black/80 text-white text-center font-semibold text-3xl
+                      motion-safe:animate-pulse"
+              ></div>
+            </div>
+            
+            <div class="message mt-1 text-center text-2xl"></div>
+            <button id="resetButton" class="reset-button hidden">
+              Réinitialiser la partie
+            </button>
+          </div>
         </div>
-        <div class="flex-1 flex flex-col items-center justify-center">
-          <div class="chessboard w-96 h-96 border border-black"></div>
-          <div class="status mt-2"></div>
-          <button id="resetButton" class="reset-button">Reset Game</button>
-          <div class="user-count mt-2"></div>
-          <div class="turn-popup"></div>
-          <div class="message"></div>
-        </div>
-        <div class="chat-container">
-          <h2 class="text-xl font-bold mb-4">Chat</h2>
-          <div class="chat-messages"></div>
-          <form id="chatForm" class="chat-form">
-            <input
-              id="chatInput"
-              type="text"
-              placeholder="Type your message..."
-              autocomplete="off"
-            />
-            <button type="submit" class="button">Send</button>
-          </form>
+
+        <!-- sidebar + chat -->
+        <div class="flex-2 flex flex-col gap-4 md:max-w-sm w-full min-h-0">
+          <div class="sidebar">
+            <h2 class="text-xl font-bold mb-4">
+              Joueurs
+              <span class="user-count mt-2 ml-3"></span>
+            </h2>
+            <ul id="usersList" class="space-y-2"></ul>
+          </div>
+
+          <div class="chat-container flex-1 flex flex-col min-h-0">
+            <h2 class="text-xl font-bold mb-4">Chat</h2>
+
+            <div class="flex flex-col flex-1 min-h-0">
+              <div class="chat-messages flex-1 min-h-0 overflow-y-auto"></div>
+
+              <form id="chatForm" class="chat-form flex-none mt-2">
+                <input
+                  id="chatInput"
+                  type="text"
+                  placeholder="Tapez votre message..."
+                  autocomplete="off"
+                />
+                <button type="submit" class="button ml-2">Envoyer</button>
+              </form>
+            </div>
+          </div>
         </div>
       </div>
     </div>
+
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
     <script src="/javascripts/script.js"></script>

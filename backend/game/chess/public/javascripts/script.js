@@ -16,6 +16,8 @@ const chatInput = document.querySelector("#chatInput");
 const chatMessages = document.querySelector(".chat-messages");
 const resetButton = document.querySelector("#resetButton");
 
+let gameFinished = false;
+
 // Select the container holding the login inputs to hide it later
 const loginContainer = usernameInput.parentElement; 
 
@@ -79,7 +81,7 @@ chatForm.addEventListener("submit", (e) => {
 
 resetButton.addEventListener("click", () => {
   if (currentRoom && playerRole) {
-    if (confirm("Are you sure you want to reset the game?")) {
+    if (confirm("Êtes-vous sûr de vouloir réinitialiser la partie ?")) {
       socket.emit("resetGame", currentRoom);
     }
   }
@@ -172,27 +174,45 @@ const renderBoard = () => {
     });
   });
 
+  // Reset UI fin de partie si on repart sur une partie normale
+  if (!chess.in_checkmate() && !chess.in_draw() && gameFinished) {
+    clearEndGameUI();
+  }
+
   if (chess.in_checkmate()) {
-    statusElement.textContent = "Checkmate";
-  } else if (chess.in_check()) {
-    statusElement.textContent = "Check";
+    statusElement.textContent = "Échec et mat";
+
+    // turn() = camp qui doit jouer MAIS il est mat => perdant
+    const loser = chess.turn(); // 'w' ou 'b'
+    const winner = loser === "w" ? "b" : "w";
+    showEndGame({ type: "checkmate", winnerColor: winner });
   } else if (chess.in_draw()) {
-    statusElement.textContent = "Draw";
+    statusElement.textContent = "Nulle";
+    showEndGame({ type: "draw" });
   } else if (chess.in_stalemate()) {
-    statusElement.textContent = "Stalemate";
+    statusElement.textContent = "Pat";
+    showEndGame({ type: "draw" });
   } else if (chess.in_threefold_repetition()) {
-    statusElement.textContent = "Threefold Repetition";
+    statusElement.textContent = "Triple répétition";
+    showEndGame({ type: "draw" });
   } else if (chess.insufficient_material()) {
-    statusElement.textContent = "Insufficient Material";
+    statusElement.textContent = "Matériel insuffisant";
+    showEndGame({ type: "draw" });
+  } else if (chess.in_check()) {
+    statusElement.textContent = "Échec";
   } else {
     statusElement.textContent = "";
   }
 
-  turnPopupElement.textContent = `${
-    chess.turn() === "w" ? "White's" : "Black's"
-  } turn`;
-  turnPopupElement.classList.add("visible");
-  setTimeout(() => turnPopupElement.classList.remove("visible"), 2000);
+  if (!gameFinished) {
+    turnPopupElement.textContent = `Au tour des ${chess.turn() === "w" ? "Blancs" : "Noirs"} `;
+    turnPopupElement.classList.add("visible");
+    statusElement.textContent = `Au tour des ${chess.turn() === "w" ? "Blancs" : "Noirs"}`;
+    setTimeout(() => turnPopupElement.classList.remove("visible"), 2000);
+  } else {
+    turnPopupElement.classList.remove("visible");
+  }
+
 
   if (playerRole === "b") {
     boardElement.classList.add("flipped");
@@ -222,7 +242,7 @@ socket.on("move", (move) => {
 });
 
 socket.on("userCount", (count) => {
-  userCountElement.textContent = `Online users: ${count}`;
+  userCountElement.textContent = `Utilisateurs connectés: ${count}`;
 });
 
 socket.on("updateUsers", (users) => {
@@ -250,7 +270,7 @@ socket.on("error", (message) => {
 // -----------------------------
 
 socket.on("opponentJoined", () => {
-  messageElement.textContent = "Opponent joined the room";
+  messageElement.textContent = "Un adversaire a rejoint la partie. Que le meilleur gagne !";
   setTimeout(() => (messageElement.textContent = ""), 3000);
 });
 
@@ -271,9 +291,10 @@ socket.on("chatMessage", ({ message, username }) => {
 });
 
 socket.on("gameReset", () => {
+  clearEndGameUI();
   chess.reset();
   renderBoard();
-  messageElement.textContent = "Game has been reset";
+  messageElement.textContent = "La partie a été réinitialisée";
   setTimeout(() => (messageElement.textContent = ""), 3000);
 });
 
@@ -295,5 +316,40 @@ const showPossibleMoves = (row, col) => {
     targetSquare.classList.add("possible-move");
   });
 };
+
+
+const showEndGame = ({ type, winnerColor = null }) => {
+  gameFinished = true;
+
+  // Afficher le bouton reset à la fin
+  resetButton.classList.remove("hidden");
+  resetButton.classList.add("animate-bounce"); // petite anim Tailwind
+
+  // Message + effet "victoire"
+  if (type === "checkmate") {
+    const winnerText = winnerColor === "w" ? "Blancs" : "Noirs";
+    messageElement.textContent = `Fin de partie — Victoire des ${winnerText} !`;
+    messageElement.classList.remove("draw");
+    messageElement.classList.add("win");
+  } else {
+    messageElement.textContent = "Fin de partie — Match nul.";
+    messageElement.classList.remove("win");
+    messageElement.classList.add("draw");
+  }
+
+  // (Optionnel) figer l'UI côté client : plus de drag
+  const pieces = document.querySelectorAll(".piece");
+  pieces.forEach((p) => (p.draggable = false));
+};
+
+const clearEndGameUI = () => {
+  gameFinished = false;
+  messageElement.textContent = "";
+  messageElement.classList.remove("win", "draw");
+  resetButton.classList.remove("animate-bounce");
+  // si tu veux cacher le reset tant que la partie continue :
+  resetButton.classList.add("hidden");
+};
+
 
 renderBoard();
