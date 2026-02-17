@@ -29,4 +29,10 @@ services:
     environment:
       - BBB_URL=${BBB_URL}
       - BBB_SECRET=${BBB_SECRET}
+      - JWT_SECRET=${JWT_SECRET}
+    volumes:
+      - auth-data:/root/
     restart: unless-stopped
+
+volumes:
+  auth-data:
