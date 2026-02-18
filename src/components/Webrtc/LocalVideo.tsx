@@ -1,50 +1,21 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { Mic, MicOff, Video, VideoOff } from 'lucide-react';
 
 interface LocalVideoProps {
   stream: MediaStream;
   className?: string;
+  // ✅ État mic/cam contrôlé par le parent (Footer via App)
+  micEnabled?: boolean;
+  camEnabled?: boolean;
 }
 
-export function LocalVideo({ stream, className = '' }: LocalVideoProps) {
+export function LocalVideo({ stream, className = '', micEnabled = true, camEnabled = true }: LocalVideoProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [micEnabled, setMicEnabled] = useState(true);
-  const [camEnabled, setCamEnabled] = useState(true);
 
   useEffect(() => {
     if (videoRef.current && stream) {
       videoRef.current.srcObject = stream;
     }
-
-    // ✅ État initial des tracks
-    const audioTrack = stream.getAudioTracks()[0];
-    const videoTrack = stream.getVideoTracks()[0];
-    if (audioTrack) setMicEnabled(audioTrack.enabled);
-    if (videoTrack) setCamEnabled(videoTrack.enabled);
-
-    // ✅ Surveille les changements en temps réel
-    const handleMute = (e: Event) => {
-      const track = e.target as MediaStreamTrack;
-      if (track.kind === 'audio') setMicEnabled(false);
-      if (track.kind === 'video') setCamEnabled(false);
-    };
-    const handleUnmute = (e: Event) => {
-      const track = e.target as MediaStreamTrack;
-      if (track.kind === 'audio') setMicEnabled(true);
-      if (track.kind === 'video') setCamEnabled(true);
-    };
-
-    stream.getTracks().forEach(track => {
-      track.addEventListener('mute', handleMute);
-      track.addEventListener('unmute', handleUnmute);
-    });
-
-    return () => {
-      stream.getTracks().forEach(track => {
-        track.removeEventListener('mute', handleMute);
-        track.removeEventListener('unmute', handleUnmute);
-      });
-    };
   }, [stream]);
 
   return (
@@ -60,7 +31,7 @@ export function LocalVideo({ stream, className = '' }: LocalVideoProps) {
         className="w-full h-full object-cover"
       />
 
-      {/* ✅ Icônes micro + caméra en haut à droite */}
+      {/* ✅ Icônes mises à jour via props (source de vérité = Footer) */}
       <div className="absolute top-1.5 right-1.5 flex gap-1">
         {micEnabled
           ? <Mic className="w-4 h-4 text-white drop-shadow" />

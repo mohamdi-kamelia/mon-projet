@@ -19,15 +19,30 @@ function UnityGameWithFooter() {
   const { handleJoinWebRTC, handleLeaveWebRTC } = useProximity(ws);
   const { setLocalStream, setWs, toggleMic, toggleCamera } = useWebRTCControls();
 
-
   const [localStream, setLocalStreamState] = useState<MediaStream | null>(null);
+  const [inBBBMeeting, setInBBBMeeting] = useState(false);
+
+  // ✅ États mic/cam partagés entre Footer et LocalVideo
+  const [isMuted, setIsMuted] = useState(false);
+  const [isCameraOff, setIsCameraOff] = useState(false);
 
   const handleLocalStream = useCallback((stream: MediaStream | null) => {
-    setLocalStream(stream);         // pour useWebRTCControls (toggle)
-    setLocalStreamState(stream);    // pour Footer (icônes)
+    setLocalStream(stream);
+    setLocalStreamState(stream);
   }, [setLocalStream]);
 
-  const [inBBBMeeting, setInBBBMeeting] = useState(false);
+  // ✅ Handlers qui mettent à jour l'état local en plus du toggle
+  const handleMute = useCallback(() => {
+    const result = toggleMic();
+    setIsMuted(result);
+    return result;
+  }, [toggleMic]);
+
+  const handleVideo = useCallback(() => {
+    const result = toggleCamera();
+    setIsCameraOff(result);
+    return result;
+  }, [toggleCamera]);
 
   useEffect(() => {
     setWs(ws, user?.id.toString() ?? '');
@@ -83,6 +98,8 @@ function UnityGameWithFooter() {
                 videoPosition="top-right"
                 enabled={true}
                 onLocalStream={handleLocalStream}
+                micEnabled={!isMuted}
+                camEnabled={!isCameraOff}
               />
             )}
           </div>
@@ -98,13 +115,13 @@ function UnityGameWithFooter() {
 
       <footer className="w-full bg-gray-900 text-white flex-shrink-0">
         <Footer
-          onMute={toggleMic}
-          onVideo={toggleCamera}
+          onMute={handleMute}
+          onVideo={handleVideo}
           OnUserNameChange={handleChangeUserName}
           userName={user?.name || ""}
           userEmail={user?.email || ""}
           onLogout={logout}
-          localStream={localStream} 
+          localStream={localStream}
         />
       </footer>
     </div>

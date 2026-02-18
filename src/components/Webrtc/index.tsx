@@ -12,6 +12,9 @@ interface WebrtcProps {
   videoPosition?: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left';
   enabled?: boolean;
   onLocalStream?: (stream: MediaStream | null) => void;
+  // ✅ État mic/cam passé depuis App.tsx
+  micEnabled?: boolean;
+  camEnabled?: boolean;
 }
 
 export function Webrtc({
@@ -21,6 +24,8 @@ export function Webrtc({
   videoPosition = 'top-right',
   enabled = true,
   onLocalStream,
+  micEnabled = true,
+  camEnabled = true,
 }: WebrtcProps) {
   const { localStream, remoteStreams, isInitialized, error } = useWebRTC({
     ws,
@@ -51,7 +56,9 @@ export function Webrtc({
       remoteStreams={remoteStreams}
       getPlayerDistance={getPlayerDistance}
       position={videoPosition}
-      ws={ws} //  Passe le ws pour que RemoteVideo reçoive l'état mic/cam
+      ws={ws}
+      micEnabled={micEnabled}
+      camEnabled={camEnabled}
     />
   );
 }
