@@ -138,6 +138,5 @@ dist
 .vs
 .DS_Store
 .vite
-
 # Unity Build (hosted on S3)
 public/UnityBuild/
