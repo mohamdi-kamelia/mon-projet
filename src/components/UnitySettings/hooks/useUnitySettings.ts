@@ -242,9 +242,11 @@ export const useUnitySettings = ({
     }, [sendToUnity]);
 
     const enterAvatarCustomization = useCallback(() => {
-        sendToUnity(SETTINGS_EVENTS.methods.ENTER_AVATAR_CUSTOMIZATION);
-        closeModal();
-    }, [sendToUnity, closeModal]);
+        const sceneName = "SelectionSkinUMA"; 
+        
+        // Send the method name AND the scene name as a parameter
+        sendToUnity(SETTINGS_EVENTS.methods.ENTER_AVATAR_CUSTOMIZATION, sceneName);
+    }, [sendToUnity]);
 
     // ========== Helper functions ==========
 

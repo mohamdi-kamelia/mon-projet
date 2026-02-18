@@ -45,7 +45,7 @@ export function SettingsSidebar({
                             'text-sm font-medium flex items-center gap-3',
                             activeTab === tab
                                 ? 'bg-[#237ECE] text-white shadow-md'
-                                : 'text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'
+                                : 'text-slate-400 hover:bg-slate-700/50 hover:text-blue-400'
                         )}
                     >
                         {icons[tab]}
