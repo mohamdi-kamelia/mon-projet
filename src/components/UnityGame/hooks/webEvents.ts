@@ -59,6 +59,13 @@ export const WebEvents = {
         CLOSE_METHOD: 'CloseMediaInteraction',
     },
 
+    // Game Interaction (Chess, Connect4, etc.)
+    Game: {
+        RECEIVE: 'ReceiveGameInteraction',
+        CLOSE_MODAL: 'CloseGameModal',
+        CLOSE_METHOD: 'CloseGameInteraction',
+    },
+
     // Jitsi Voice Chat
     Jitsi: {
         JOIN_ROOM: 'UnityJoinRoom',
