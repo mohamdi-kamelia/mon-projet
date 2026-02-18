@@ -5,7 +5,7 @@ import { Input } from "@codegouvfr/react-dsfr/Input";
 import { Alert } from "@codegouvfr/react-dsfr/Alert";
 
 // const API_URL = 'http://localhost:8080';
-const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8080';
+const API_URL = import.meta.env.VITE_BACKEND_URL || '';
 
 export function ForgotPasswordPage() {
   const [loading, setLoading] = useState(false);

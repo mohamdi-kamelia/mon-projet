@@ -2,7 +2,7 @@ interface SignalingMessage {
   type: string;
   fromPlayer?: string;
   toPlayer?: string;
-  data?: RTCSessionDescriptionInit | RTCIceCandidateInit | { candidate: RTCIceCandidateInit };
+  data?: RTCSessionDescriptionInit | RTCIceCandidateInit | { candidate: RTCIceCandidateInit } | any;
 }
 
 export class SignalingClient {
@@ -42,6 +42,21 @@ export class SignalingClient {
       toPlayer,
       data: {
         candidate: candidate.toJSON(),
+      },
+    });
+  }
+
+  /**
+   * Notifie tous les peers connectés du changement d'état mic/cam.
+   * toPlayer = '*' pour broadcaster à tous, ou un playerId spécifique.
+   */
+  sendMediaState(toPlayer: string, micEnabled: boolean, camEnabled: boolean): void {
+    this.send({
+      type: 'webrtc_media_state',
+      toPlayer,
+      data: {
+        micEnabled,
+        camEnabled,
       },
     });
   }
