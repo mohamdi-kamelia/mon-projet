@@ -5,8 +5,10 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
 } from "@/components/ui/dropdown-menu";
+
 import { Mic, MicOff, Camera, CameraOff, ChevronUp, LogOut, ChevronDown, ChevronRight } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 
 type Device = { deviceId: string; label: string };
 
@@ -17,6 +19,7 @@ const STATUS_CONFIG: Record<UserStatus, { label: string; color: string }> = {
   away:   { label: "Absent",          color: "bg-yellow-400" },
   dnd:    { label: "Ne pas dÃ©ranger", color: "bg-red-500"    },
 };
+ 
 
 interface FooterProps {
   onMute: () => boolean;

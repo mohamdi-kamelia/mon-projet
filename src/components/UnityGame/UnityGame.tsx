@@ -4,7 +4,9 @@ import { useUnityInteractionPrompt, InteractionPrompt } from '../InteractionProm
 import { useUnityMap, MapModal, MapButton } from '../UnityMap';
 import { EViewType } from '../UnitySettings/types/settings.types';
 import { CursorHelp } from './components/CursorHelp';
-import { useEffect, useRef } from 'react';
+import { useUnityProjectSelection } from './hooks/useUnityProjectSelection';
+import { ProjectSelectionModal } from './components/ProjectSelectionModal';
+import { useEffect, useRef, useCallback } from 'react';
 
 // Custom hooks
 import {
@@ -66,7 +68,8 @@ function UnityGame({
         unityProvider, 
         isLoaded, 
         loadingProgression, 
-        UNSAFE__unityInstance, 
+        UNSAFE__unityInstance,
+        sendMessage,
         addEventListener, 
         removeEventListener 
     } = useUnityContext({
@@ -75,6 +78,21 @@ function UnityGame({
         frameworkUrl: baseUnity + buildName + ".framework.js",
         codeUrl: baseUnity + buildName + ".wasm",
     });
+
+    // Function to focus the Unity canvas (used by modals after closing)
+    const focusUnityCanvas = useCallback(() => {
+        const canvas = document.getElementById('unity-canvas') as HTMLCanvasElement;
+        if (canvas) {
+            canvas.focus();
+        }
+    }, []);
+
+    // Project Selection Hook
+    const projectSelection = useUnityProjectSelection(
+        sendMessage,
+        addEventListener,
+        removeEventListener
+    );
 
     const bbbRef = useRef<any>(null);
     const finalBbbRef = externalBbbRef || bbbRef;
@@ -217,7 +235,8 @@ function UnityGame({
         mediaModal.isOpen ||
         gameModal.isOpen ||
         settingsHook.isOpen ||
-        mapHook.isOpen;
+        mapHook.isOpen ||
+        projectSelection.isOpen; // <-- ADD THIS: include project selection modal
 
     return (
         <div className="flex flex-col place-self-center bg-gradient-to-br from-[#212952] to-[#a9bcdb] bg-[url(/images/header_background.png)] bg-cover h-full w-full">
@@ -279,6 +298,19 @@ function UnityGame({
                     onNavigate={mapHook.handleNavigate}
                     playerData={mapHook.playerPos}
                     currentSceneIndex={mapHook.currentSceneIndex}
+                />
+
+                {/* Project Selection Modal */}
+                <ProjectSelectionModal
+                    isOpen={projectSelection.isOpen}
+                    projects={projectSelection.projects}
+                    selectedProject={projectSelection.selectedProject}
+                    error={projectSelection.error}
+                    isLoading={projectSelection.isLoading}
+                    onSelectProject={projectSelection.selectProject}
+                    onConfirm={projectSelection.confirmSelection}
+                    onClose={projectSelection.closeModal}
+                    focusUnityCanvas={focusUnityCanvas}
                 />
 
                 {/* Only show when in Third Person View AND loaded */}

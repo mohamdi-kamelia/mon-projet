@@ -59,7 +59,7 @@ export function SettingsDropdown<T extends string | number>({
                     onClick={() => setIsOpen(!isOpen)}
                     className={cn(
                         'w-full flex items-center justify-between px-4 py-2.5',
-                        'bg-[#237ECE] hover:bg-[#2a8fe0] text-white',
+                        '!bg-[#237ECE] hover:!bg-[#2a8fe0] !text-white',
                         'rounded-md transition-colors duration-150',
                         'text-sm font-medium',
                         'focus:outline-none focus:ring-2 focus:ring-[#237ECE]/50'
@@ -81,21 +81,21 @@ export function SettingsDropdown<T extends string | number>({
                         'py-1 max-h-60 overflow-auto'
                     )}>
                         {options.map((option) => (
-                            <button
-                                key={String(option.value)}
-                                type="button"
-                                onClick={() => handleSelect(option.value)}
-                                className={cn(
-                                    'w-full px-4 py-2 text-left text-sm',
-                                    'transition-colors duration-150',
-                                    option.value === value
-                                        ? 'bg-[#237ECE] text-white'
-                                        : 'text-slate-300 hover:bg-slate-700/50'
-                                )}
-                            >
-                                {option.label}
-                            </button>
-                        ))}
+                        <button
+                            key={String(option.value)}
+                            type="button"
+                            onClick={() => handleSelect(option.value)}
+                            className={cn(
+                                'w-full px-4 py-2 text-left text-sm',
+                                'transition-colors duration-150',
+                                option.value === value
+                                    ? '!bg-[#237ECE] !text-white hover:!bg-[#2a8fe0]'
+                                    : '!text-blue-400 !bg-transparent hover:!bg-slate-700/50'
+                            )}
+                        >
+                            {option.label}
+                        </button>
+                    ))}
                     </div>
                 )}
             </div>
