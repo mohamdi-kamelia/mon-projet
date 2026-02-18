@@ -147,7 +147,7 @@ export function SettingsModal({ settingsHook, portalContainer }: SettingsModalPr
                         className={cn(
                             'absolute top-4 right-4 z-10',
                             'p-2 rounded-lg',
-                            'text-slate-400 hover:text-white hover:bg-slate-700/50',
+                            'text-slate-400 hover:text-blue-400 hover:bg-slate-700/50',
                             'transition-colors duration-150'
                         )}
                         aria-label="Fermer"

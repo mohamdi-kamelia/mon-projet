@@ -260,7 +260,7 @@ export const MapModal = ({
 
                 <button
                     onClick={onClose}
-                    className="absolute top-4 right-4 z-20 p-2 bg-slate-800/90 hover:bg-slate-700 text-white rounded-lg transition-colors"
+                    className="absolute top-4 right-4 z-20 p-2 bg-slate-800/90 hover:bg-slate-700 hover:text-blue-400 text-white rounded-lg transition-colors"
                     aria-label="Fermer la carte"
                 >
                     <X className="w-6 h-6" />
@@ -280,7 +280,7 @@ export const MapModal = ({
                             <Button
                                 onClick={handleZoomOut}
                                 disabled={zoom <= MIN_ZOOM}
-                                className="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="bg-slate-700 hover:bg-slate-600 text-white hover:text-blue-400 px-3 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
                                 title="Zoom arrière"
                                 size="sm"
                             >
@@ -294,7 +294,7 @@ export const MapModal = ({
                             <Button
                                 onClick={handleZoomIn}
                                 disabled={zoom >= MAX_ZOOM}
-                                className="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="bg-slate-700 hover:bg-slate-600 text-white hover:text-blue-400 px-3 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
                                 title="Zoom avant"
                                 size="sm"
                             >
@@ -303,7 +303,7 @@ export const MapModal = ({
                             
                             <Button
                                 onClick={handleResetZoom}
-                                className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg ml-2"
+                                className="bg-blue-600 hover:bg-blue-700 hover:text-blue-400 text-white px-3 py-2 rounded-lg ml-2"
                                 title="Réinitialiser le zoom"
                                 size="sm"
                             >
@@ -376,7 +376,7 @@ export const MapModal = ({
                                 >
                                     <div className="flex items-center gap-3">
                                         <div className={`w-3 h-3 rounded-full ${scene.color} ${!isHere ? 'group-hover:scale-125' : ''} transition-transform`} />
-                                        <span className={`font-medium ${isHere ? 'text-slate-400' : 'text-white'}`}>
+                                        <span className={`font-medium ${isHere ? 'text-slate-400' : 'text-white group-hover:text-blue-400'}`}>
                                             {scene.name}
                                         </span>
                                         {isHere && (

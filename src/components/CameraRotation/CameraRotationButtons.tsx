@@ -111,7 +111,7 @@ export function CameraRotationButtons({
                 title="Tourner la caméra à gauche"
             >
                 <svg
-                    className="w-8 h-8 text-white/80 group-hover:text-white group-active:text-blue-400 transition-colors"
+                    className="w-8 h-8 text-white/80 group-hover:text-blue-400 group-active:text-blue-400 transition-colors"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -136,7 +136,7 @@ export function CameraRotationButtons({
                 title="Tourner la caméra à droite"
             >
                 <svg
-                    className="w-8 h-8 text-white/80 group-hover:text-white group-active:text-blue-400 transition-colors"
+                    className="w-8 h-8 text-white/80 group-hover:text-blue-400 group-active:text-blue-400 transition-colors"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"

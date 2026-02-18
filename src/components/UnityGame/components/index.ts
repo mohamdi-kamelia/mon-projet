@@ -7,3 +7,4 @@ export { LibraryDeskModal } from './LibraryDeskModal';
 export { NewsStandModal } from './NewsStandModal';
 export { MediaModal } from './MediaModal';
 export { GameModal } from './GameModal';
+export { ProjectSelectionModal } from './ProjectSelectionModal';

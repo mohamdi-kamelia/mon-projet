@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Mic, MicOff, Camera, CameraOff, ChevronUp, LogOut } from "lucide-react";
 import { useState, useEffect } from "react";
-import { NameModal } from "./NameModal";
+//import { NameModal } from "./NameModal";
 import { useAuth } from "@/contexts/AuthContext"; 
 
 type Device = {
@@ -117,7 +117,7 @@ function Footer({
     <div className="h-15 flex p-2 items-center justify-between">
       {/* Section gauche : Contrôles audio/vidéo */}
       <div className="flex items-center">
-        <NameModal userName={userName != null ? userName : ""} onUserNameChange={OnUserNameChange} />
+        {/* <NameModal userName={userName != null ? userName : ""} onUserNameChange={OnUserNameChange} /> */}
 
         <div className="flex px-3">
           <div className="flex h-full px-2 mx-2">
