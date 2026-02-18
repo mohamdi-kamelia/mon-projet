@@ -1,5 +1,5 @@
+import { useEffect } from 'react';
 import { useWebRTC } from './hooks/use-webrtc';
-import { usePositionSync } from './hooks/use-position-sync';
 import { useProximityAudio } from './hooks/use-proximity-audio';
 import type { Vector3 } from '../../lib/webrtc/types';
 import { VideoOverlay } from './VideoOverlay';
@@ -11,15 +11,21 @@ interface WebrtcProps {
   getPlayerDistance: (playerId: string) => number;
   videoPosition?: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left';
   enabled?: boolean;
+  onLocalStream?: (stream: MediaStream | null) => void;
+  // ✅ État mic/cam passé depuis App.tsx
+  micEnabled?: boolean;
+  camEnabled?: boolean;
 }
 
 export function Webrtc({
   ws,
   playerId,
-  getPlayerPosition,
   getPlayerDistance,
   videoPosition = 'top-right',
   enabled = true,
+  onLocalStream,
+  micEnabled = true,
+  camEnabled = true,
 }: WebrtcProps) {
   const { localStream, remoteStreams, isInitialized, error } = useWebRTC({
     ws,
@@ -27,12 +33,9 @@ export function Webrtc({
     enabled,
   });
 
-  usePositionSync({
-    ws,
-    playerId,
-    getPosition: getPlayerPosition,
-    enabled: enabled && isInitialized,
-  });
+  useEffect(() => {
+    onLocalStream?.(localStream);
+  }, [localStream, onLocalStream]);
 
   useProximityAudio({
     remoteStreams,
@@ -45,9 +48,7 @@ export function Webrtc({
     return null;
   }
 
-  if (!isInitialized) {
-    return null;
-  }
+  if (!isInitialized) return null;
 
   return (
     <VideoOverlay
@@ -55,6 +56,9 @@ export function Webrtc({
       remoteStreams={remoteStreams}
       getPlayerDistance={getPlayerDistance}
       position={videoPosition}
+      ws={ws}
+      micEnabled={micEnabled}
+      camEnabled={camEnabled}
     />
   );
 }

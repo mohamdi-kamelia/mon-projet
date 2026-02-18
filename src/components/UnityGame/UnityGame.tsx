@@ -21,7 +21,6 @@ import {
     useUnityNewsStand,
     useUnityMedia,
     useUnityGame,
-    useUnityProximityVoc
 } from './hooks';
 
 // Components
@@ -34,12 +33,10 @@ import {
     LibraryDeskModal,
     NewsStandModal,
     MediaModal,
-    GameModal
+    GameModal,
 } from './components';
 
 import BBBWrapper from './components/BBB';
-
-// Camera rotation buttons for isometric view
 import { CameraRotationButtons } from '../CameraRotation/CameraRotationButtons';
 
 
@@ -48,16 +45,22 @@ interface UnityGameProps {
     conferenceUrl?: string;
     bbbRef?: React.RefObject<any>;
     userName?: string;
+    onJoinWebRTC?: (targetPlayerId: string) => void;
+    onLeaveWebRTC?: (targetPlayerId: string) => void;
+    onJoinBBB?: () => void;
+    onLeaveBBB?: () => void;
 }
 
 function UnityGame({ 
     onChangeJitsiRoom, 
     conferenceUrl: webConferenceUrl,
     bbbRef: externalBbbRef,
-    userName 
+    userName,
+    onJoinWebRTC,
+    onLeaveWebRTC,
+    onJoinBBB,
+    onLeaveBBB,
 }: UnityGameProps) {
-    // Unity context setup
-    //const baseUnity = "https://mam-virtuelle.s3.fr-par.scw.cloud/UnityBuild/Build/";
     const baseUnity = "/UnityBuild/Build/"; // Use this for local builds
     const buildName = "UnityBuild";
     
@@ -93,8 +96,6 @@ function UnityGame({
 
     const bbbRef = useRef<any>(null);
     const finalBbbRef = externalBbbRef || bbbRef;
-
-    // Custom hooks - all modal and interaction logic extracted
     const tvModal = useUnityTV({
         addEventListener,
         removeEventListener,
@@ -179,17 +180,45 @@ function UnityGame({
         unityInstance: UNSAFE__unityInstance
     });
 
-    const proximityCall = useUnityProximityVoc({
-        addEventListener,
-        removeEventListener,
-        isLoaded,
-        unityInstance: UNSAFE__unityInstance
-    })
-
-    // Automatically focus Unity canvas on initial load
     useUnityInitialFocus({ isLoaded });
 
-    // Expose Unity instance globally for NameModal and other components
+    useEffect(() => {
+        if (!isLoaded) return;
+
+        const handleJoin = (targetPlayerId: string) => {
+            console.log('Unity: JoinWebRTC ->', targetPlayerId);
+            onJoinWebRTC?.(targetPlayerId);
+        };
+
+        const handleLeave = (targetPlayerId: string) => {
+            console.log('Unity: LeaveWebRTC ->', targetPlayerId);
+            onLeaveWebRTC?.(targetPlayerId ?? '');
+        };
+
+        addEventListener('JoinWebRTC', handleJoin);
+        addEventListener('LeaveWebRTC', handleLeave);
+
+        return () => {
+            removeEventListener('JoinWebRTC', handleJoin);
+            removeEventListener('LeaveWebRTC', handleLeave);
+        };
+    }, [isLoaded, addEventListener, removeEventListener, onJoinWebRTC, onLeaveWebRTC]);
+
+    useEffect(() => {
+        if (!isLoaded) return;
+
+        const handleJoinBBB = () => onJoinBBB?.();
+        const handleLeaveBBB = () => onLeaveBBB?.();
+
+        addEventListener('JoinBBB', handleJoinBBB);
+        addEventListener('LeaveBBB', handleLeaveBBB);
+
+        return () => {
+            removeEventListener('JoinBBB', handleJoinBBB);
+            removeEventListener('LeaveBBB', handleLeaveBBB);
+        };
+    }, [isLoaded, addEventListener, removeEventListener, onJoinBBB, onLeaveBBB]);
+
     useEffect(() => {
         if (isLoaded && UNSAFE__unityInstance) {
             (window as any).UNSAFE__unityInstance = UNSAFE__unityInstance;
@@ -211,7 +240,6 @@ function UnityGame({
 
     return (
         <div className="flex flex-col place-self-center bg-gradient-to-br from-[#212952] to-[#a9bcdb] bg-[url(/images/header_background.png)] bg-cover h-full w-full">
-
 
             {/* Loading screen */}
             {!isLoaded && <LoadingScreen progress={loadingProgression} />}
@@ -247,7 +275,7 @@ function UnityGame({
                 {/* Media/Poster Modal */}
                 <MediaModal {...mediaModal} />
 
-                {/* Game Modal (Chess, Connect4, etc.) */}
+                {/* Game Modal (Chess, Connect4, etc.)  */}
                 <GameModal {...gameModal} playerName={userName} />
 
                 {/* BBB Wrapper */}
@@ -304,7 +332,7 @@ function UnityGame({
                     <MapButton onClick={mapHook.openMap} />
                 )}
 
-                {/*Interaction Prompt - only show when no modal is open */}
+                {/* Interaction Prompt - only show when no modal is open */}
                 {!isAnyModalOpen && mapHook.currentSceneIndex > 1 && (
                     <InteractionPrompt
                         isVisible={interactionPrompt.isVisible}
@@ -321,7 +349,7 @@ function UnityGame({
                     />
                 )}
 
-                {/* Settings button (web-triggered) */}
+                {/* Settings button */}
                 {isLoaded && !conference.isFullscreen && mapHook.currentSceneIndex > 1 && !settingsHook.isOpen && (
                     <SettingsButton onClick={settingsHook.openModal} />
                 )}

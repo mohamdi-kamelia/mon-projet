@@ -1,4 +1,3 @@
-import { Button } from "./ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -6,221 +5,232 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
 } from "@/components/ui/dropdown-menu";
-import { Mic, MicOff, Camera, CameraOff, ChevronUp, LogOut } from "lucide-react";
-import { useState, useEffect } from "react";
-//import { NameModal } from "./NameModal";
-import { useAuth } from "@/contexts/AuthContext"; 
 
-type Device = {
-  deviceId: string;
-  label: string;
+import { Mic, MicOff, Camera, CameraOff, ChevronUp, LogOut, ChevronDown, ChevronRight } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+
+type Device = { deviceId: string; label: string };
+
+type UserStatus = "online" | "away" | "dnd";
+
+const STATUS_CONFIG: Record<UserStatus, { label: string; color: string }> = {
+  online: { label: "En ligne",        color: "bg-green-400"  },
+  away:   { label: "Absent",          color: "bg-yellow-400" },
+  dnd:    { label: "Ne pas dÃ©ranger", color: "bg-red-500"    },
 };
+ 
 
-function Footer({
-  onMute,
-  onVideo,
-  onScreenShare,
-  OnAudioInputChange,
-  OnVideoInputChange,
-  OnUserNameChange,
-  onGetApi,
-  onForceJoin,
-  onForceQuit,
-  userName,
-}: {
+interface FooterProps {
   onMute: () => boolean;
   onVideo: () => boolean;
-  onScreenShare: () => void;
-  OnAudioInputChange: (deviceName: string) => void;
-  OnVideoInputChange: (deviceName: string) => void;
   OnUserNameChange: (newUserName: string) => void;
-  onGetApi: () => void;
-  onForceJoin: () => void;
-  onForceQuit: () => void;
   userName?: string;
-}) {
-  const { user, logout } = useAuth(); // ← AJOUT : Récupérer user et logout
+  userEmail?: string;
+  onLogout: () => void;
+}
 
+function Footer({ onMute, onVideo, OnUserNameChange, userName, userEmail, onLogout }: FooterProps) {
   const [audioInputDevices, setAudioInputDevices] = useState<Device[]>([]);
   const [videoInputDevices, setVideoInputDevices] = useState<Device[]>([]);
-  const [selectedAudioInput, setSelectedAudioInput] = useState<string>("default");
-  const [selectedVideoInput, setSelectedVideoInput] = useState<string>("default");
-
+  const [selectedAudioInput, setSelectedAudioInput] = useState("default");
+  const [selectedVideoInput, setSelectedVideoInput] = useState("default");
   const [isMuted, setIsMuted] = useState(false);
-  const [isCameraMuted, setIsCameraOn] = useState(true);
+  const [isCameraOff, setIsCameraOff] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [statusMenuOpen, setStatusMenuOpen] = useState(false);
+  const [status, setStatus] = useState<UserStatus>("online");
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const loadDevices = async () => {
-      await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
-      const devices = await navigator.mediaDevices.enumerateDevices();
-
-      setAudioInputDevices(
-        devices
-          .filter((d) => d.kind === "audioinput")
-          .map((d) => ({
-            deviceId: d.deviceId,
-            label: d.label || "Micro inconnu",
-          }))
-      );
-      setVideoInputDevices(
-        devices
-          .filter((d) => d.kind === "videoinput")
-          .map((d) => ({
-            deviceId: d.deviceId,
-            label: d.label || "Camera inconnue",
-          }))
-      );
+      if (!navigator?.mediaDevices?.getUserMedia) return;
+      try {
+        await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        setAudioInputDevices(devices.filter(d => d.kind === "audioinput").map(d => ({ deviceId: d.deviceId, label: d.label || "Micro inconnu" })));
+        setVideoInputDevices(devices.filter(d => d.kind === "videoinput").map(d => ({ deviceId: d.deviceId, label: d.label || "CamÃ©ra inconnue" })));
+      } catch (err) {
+        console.error("PÃ©riphÃ©riques inaccessibles :", err);
+      }
     };
-
     loadDevices();
-    navigator.mediaDevices.addEventListener("devicechange", loadDevices);
-
-    return () => {
-      navigator.mediaDevices.removeEventListener("devicechange", loadDevices);
-    };
+    if (navigator?.mediaDevices) {
+      navigator.mediaDevices.addEventListener("devicechange", loadDevices);
+      return () => navigator.mediaDevices.removeEventListener("devicechange", loadDevices);
+    }
   }, []);
 
   useEffect(() => {
-    if (audioInputDevices.length > 0) {
-      handleAudioChange(audioInputDevices.find((d) => d.deviceId === "default")?.label || audioInputDevices[0].label);
-    }
+    if (audioInputDevices.length > 0) setSelectedAudioInput(audioInputDevices[0].label);
   }, [audioInputDevices]);
 
   useEffect(() => {
-    if (videoInputDevices.length > 0) {
-      handleVideoChange(videoInputDevices[0].label);
-    }
+    if (videoInputDevices.length > 0) setSelectedVideoInput(videoInputDevices[0].label);
   }, [videoInputDevices]);
 
-  const toggleMute = ({ _isMuted }: { _isMuted: boolean }) => {
-    setIsMuted(_isMuted);
-    console.log(isMuted);
-  };
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setUserMenuOpen(false);
+        setStatusMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
-  const toggleCamera = ({ _isMuted }: { _isMuted: boolean }) => {
-    setIsCameraOn(_isMuted);
-  };
+  const handleToggleMic    = () => setIsMuted(onMute());
+  const handleToggleCamera = () => setIsCameraOff(onVideo());
 
-  const handleAudioChange = (deviceName: string) => {
-    setSelectedAudioInput(deviceName);
-    OnAudioInputChange(deviceName);
-    console.log("Audio : " + deviceName);
-  };
-
-  const handleVideoChange = (deviceName: string) => {
-    setSelectedVideoInput(deviceName);
-    OnVideoInputChange(deviceName);
-    console.log("Video : " + deviceName);
-  };
+  const displayName   = userName || "Utilisateur";
+  const currentStatus = STATUS_CONFIG[status];
 
   return (
-    <div className="h-15 flex p-2 items-center justify-between">
-      {/* Section gauche : Contrôles audio/vidéo */}
-      <div className="flex items-center">
-        {/* <NameModal userName={userName != null ? userName : ""} onUserNameChange={OnUserNameChange} /> */}
+    <div className="h-14 flex items-center justify-between px-4 bg-gray-900 border-t border-white/5">
 
-        <div className="flex px-3">
-          <div className="flex h-full px-2 mx-2">
-            <Button
-              onClick={() => {
-                toggleMute({ _isMuted: onMute() });
-              }}
-              variant="secondary"
-              className={`rounded-r-none h-full ${isMuted ? "bg-MainPinkMAM" : "bg-MainGreenMAM"}`}
-            >
-              {isMuted ? (<MicOff className="w-5 h-5" />) : (<Mic className="w-5 h-5" />)}
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger>
-                <Button
-                  variant="secondary"
-                  className={`rounded-l-none h-full ${isMuted ? "bg-MainPinkMAM" : "bg-MainGreenMAM"}`}
-                >
-                  <ChevronUp className="w-4 h-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuRadioGroup value={selectedAudioInput}>
-                  {audioInputDevices.map((d) => (
-                    <DropdownMenuRadioItem
-                      value={d.label}
-                      key={d.deviceId}
-                      onClick={() => handleAudioChange(d.label)}
-                    >
-                      {d.label}
-                    </DropdownMenuRadioItem>
-                  ))}
-                </DropdownMenuRadioGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
+      <div className="relative" ref={menuRef}>
+        <button
+          onClick={() => { setUserMenuOpen(v => !v); setStatusMenuOpen(false); }}
+          className="flex items-center gap-2 px-3 py-1.5 rounded-xl hover:bg-white/5 transition-colors group"
+        >
+     
+          <div className="relative shrink-0">
+            <div className="w-7 h-7 rounded-full bg-indigo-600 flex items-center justify-center text-white text-xs font-bold select-none">
+              {displayName.charAt(0).toUpperCase()}
+            </div>
+            <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-gray-900 ${currentStatus.color}`} />
           </div>
 
-          <div className="flex h-full px-2 mx-2">
-            <Button
-              onClick={() => {
-                toggleCamera({ _isMuted: onVideo() });
-              }}
-              variant="secondary"
-              className={`rounded-r-none h-full ${isCameraMuted ? "bg-MainPinkMAM" : "bg-MainGreenMAM"}`}
-            >
-              {isCameraMuted ? (<CameraOff className="w-5 h-5" />) : (<Camera className="w-5 h-5" />)}
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger>
-                <Button
-                  variant="secondary"
-                  className={`rounded-l-none h-full ${isCameraMuted ? "bg-MainPinkMAM" : "bg-MainGreenMAM"}`}
-                >
-                  <ChevronUp className="w-4 h-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuRadioGroup value={selectedVideoInput}>
-                  {videoInputDevices.map((d) => (
-                    <DropdownMenuRadioItem
-                      value={d.label}
-                      key={d.deviceId}
-                      onClick={() => handleVideoChange(d.label)}
-                    >
-                      {d.label}
-                    </DropdownMenuRadioItem>
-                  ))}
-                </DropdownMenuRadioGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
+          <div className="flex flex-col items-start leading-tight">
+            <span className="text-sm font-medium text-white group-hover:text-indigo-300 transition-colors">
+              {displayName}
+            </span>
+            <span className="text-xs text-gray-400">{userEmail}</span>
           </div>
+          <ChevronDown className={`w-3.5 h-3.5 text-gray-500 transition-transform duration-200 ${userMenuOpen ? "rotate-180" : ""}`} />
+        </button>
 
-          <Button
-            className="h-full px-2 mx-2 bg-MainGreenMAM"
-            onClick={onScreenShare}
-          >
-            Partage
-          </Button>
-        </div>
+        {userMenuOpen && (
+          <div className="absolute bottom-full left-0 mb-2 w-52 bg-gray-800 border border-white/10 rounded-xl shadow-2xl z-50">
+
+            <div className="px-2 pt-2">
+              <button
+                onClick={() => setStatusMenuOpen(v => !v)}
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors"
+              >
+                <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${currentStatus.color}`} />
+                <span className="flex-1 text-left">{currentStatus.label}</span>
+                <ChevronRight className={`w-3.5 h-3.5 text-gray-500 transition-transform duration-200 ${statusMenuOpen ? "rotate-90" : ""}`} />
+              </button>
+
+              {/* Sous-menu statuts */}
+              {statusMenuOpen && (
+                <div className="ml-3 mt-1 mb-1 border-l-2 border-white/10 pl-2 flex flex-col gap-0.5">
+                  {(["online", "away", "dnd"] as UserStatus[]).map((s) => {
+                    const cfg = STATUS_CONFIG[s];
+                    return (
+                      <button
+                        key={s}
+                        onClick={() => { setStatus(s); setStatusMenuOpen(false); setUserMenuOpen(false); }}
+                        className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                          status === s ? "bg-white/10 text-white" : "text-gray-300 hover:bg-white/5 hover:text-white"
+                        }`}
+                      >
+                        <span className={`w-2 h-2 rounded-full shrink-0 ${cfg.color}`} />
+                        {cfg.label}
+                        {status === s && <span className="ml-auto text-indigo-400 text-xs">âœ“</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="border-t border-white/10 px-2 py-1.5 mt-1">
+              <button
+                onClick={() => { onLogout(); setUserMenuOpen(false); }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors"
+              >
+                <LogOut className="w-4 h-4" />
+                DÃ©connexion
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* ← AJOUT : Section droite : Info utilisateur + Déconnexion */}
-      <div className="flex items-center gap-4 px-4">
-        {/* Informations utilisateur */}
-        <div className="flex flex-col items-end">
-          <span className="text-sm font-medium text-white">
-            {user?.name || userName}
-          </span>
-          <span className="text-xs text-gray-400">
-            {user?.email}
-          </span>
+      {/* â”€â”€ Droite : micro + camÃ©ra â”€â”€ */}
+      <div className="flex items-center gap-2">
+
+        {/* Micro */}
+        <div className="flex rounded-xl overflow-hidden border border-white/10">
+          <button
+            onClick={handleToggleMic}
+            className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors ${
+              isMuted ? "bg-red-500/20 text-red-400 hover:bg-red-500/30" : "bg-white/5 text-green-400 hover:bg-white/10"
+            }`}
+          >
+            {isMuted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+            <span className="text-xs hidden sm:inline">{isMuted ? "Muet" : "Micro"}</span>
+          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className={`px-1.5 border-l transition-colors ${
+                isMuted ? "border-red-500/20 bg-red-500/10 text-red-400 hover:bg-red-500/20" : "border-white/10 bg-white/5 text-gray-400 hover:bg-white/10"
+              }`}>
+                <ChevronUp className="w-3.5 h-3.5" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="bg-gray-800 border-white/10 text-white">
+              <DropdownMenuRadioGroup value={selectedAudioInput}>
+                {audioInputDevices.length === 0
+                  ? <DropdownMenuRadioItem value="none" disabled>Aucun pÃ©riphÃ©rique</DropdownMenuRadioItem>
+                  : audioInputDevices.map(d => (
+                    <DropdownMenuRadioItem key={d.deviceId} value={d.label} onClick={() => setSelectedAudioInput(d.label)}>
+                      {d.label}
+                    </DropdownMenuRadioItem>
+                  ))
+                }
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
-        {/* Bouton déconnexion */}
-        <Button
-          onClick={logout}
-          variant="destructive"
-          className="flex items-center gap-2"
-          size="sm"
-        >
-          <LogOut className="w-4 h-4" />
-          Déconnexion
-        </Button>
+        {/* CamÃ©ra */}
+        <div className="flex rounded-xl overflow-hidden border border-white/10">
+          <button
+            onClick={handleToggleCamera}
+            className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors ${
+              isCameraOff ? "bg-red-500/20 text-red-400 hover:bg-red-500/30" : "bg-white/5 text-green-400 hover:bg-white/10"
+            }`}
+          >
+            {isCameraOff ? <CameraOff className="w-4 h-4" /> : <Camera className="w-4 h-4" />}
+            <span className="text-xs hidden sm:inline">{isCameraOff ? "CamÃ©ra off" : "CamÃ©ra"}</span>
+          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className={`px-1.5 border-l transition-colors ${
+                isCameraOff ? "border-red-500/20 bg-red-500/10 text-red-400 hover:bg-red-500/20" : "border-white/10 bg-white/5 text-gray-400 hover:bg-white/10"
+              }`}>
+                <ChevronUp className="w-3.5 h-3.5" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="bg-gray-800 border-white/10 text-white">
+              <DropdownMenuRadioGroup value={selectedVideoInput}>
+                {videoInputDevices.length === 0
+                  ? <DropdownMenuRadioItem value="none" disabled>Aucun pÃ©riphÃ©rique</DropdownMenuRadioItem>
+                  : videoInputDevices.map(d => (
+                    <DropdownMenuRadioItem key={d.deviceId} value={d.label} onClick={() => setSelectedVideoInput(d.label)}>
+                      {d.label}
+                    </DropdownMenuRadioItem>
+                  ))
+                }
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
       </div>
     </div>
   );
