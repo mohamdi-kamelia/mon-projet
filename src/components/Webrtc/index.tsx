@@ -11,7 +11,6 @@ interface WebrtcProps {
   getPlayerDistance: (playerId: string) => number;
   videoPosition?: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left';
   enabled?: boolean;
-  // ✅ Callback pour exposer le localStream au parent (Footer)
   onLocalStream?: (stream: MediaStream | null) => void;
 }
 
@@ -52,6 +51,7 @@ export function Webrtc({
       remoteStreams={remoteStreams}
       getPlayerDistance={getPlayerDistance}
       position={videoPosition}
+      ws={ws} //  Passe le ws pour que RemoteVideo reçoive l'état mic/cam
     />
   );
 }

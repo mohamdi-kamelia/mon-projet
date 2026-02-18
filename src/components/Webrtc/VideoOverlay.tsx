@@ -7,6 +7,8 @@ interface VideoOverlayProps {
   getPlayerDistance: (playerId: string) => number;
   position?: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left';
   maxVisible?: number;
+  // ✅ WebSocket passé aux RemoteVideo pour l'état mic/cam
+  ws?: WebSocket | null;
 }
 
 export function VideoOverlay({
@@ -14,6 +16,7 @@ export function VideoOverlay({
   remoteStreams,
   getPlayerDistance,
   maxVisible = 8,
+  ws,
 }: VideoOverlayProps) {
   const remoteArray = Array.from(remoteStreams.entries()).slice(0, maxVisible);
 
@@ -29,6 +32,7 @@ export function VideoOverlay({
           playerId={playerId}
           stream={stream}
           distance={getPlayerDistance(playerId)}
+          ws={ws}
         />
       ))}
     </div>

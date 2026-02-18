@@ -6,46 +6,39 @@ interface RemoteVideoProps {
   stream: MediaStream;
   distance?: number;
   className?: string;
+  // ✅ WebSocket pour recevoir l'état mic/cam distant
+  ws?: WebSocket | null;
 }
 
-export function RemoteVideo({ playerId, stream, className = '' }: RemoteVideoProps) {
+export function RemoteVideo({ playerId, stream, className = '', ws }: RemoteVideoProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const [micEnabled, setMicEnabled] = useState(true);
   const [camEnabled, setCamEnabled] = useState(true);
 
+  // ✅ Écoute les messages webrtc_media_state depuis le WebSocket
+  useEffect(() => {
+    if (!ws) return;
+
+    const handleMessage = (event: MessageEvent) => {
+      try {
+        const msg = JSON.parse(event.data);
+        if (msg.type === 'webrtc_media_state' && msg.fromPlayer === playerId) {
+          const data = typeof msg.data === 'string' ? JSON.parse(msg.data) : msg.data;
+          if (data?.micEnabled !== undefined) setMicEnabled(data.micEnabled);
+          if (data?.camEnabled !== undefined) setCamEnabled(data.camEnabled);
+        }
+      } catch {}
+    };
+
+    ws.addEventListener('message', handleMessage);
+    return () => ws.removeEventListener('message', handleMessage);
+  }, [ws, playerId]);
+
   useEffect(() => {
     const video = videoRef.current;
     const audio = audioRef.current;
     if (!video || !audio || !stream) return;
-
-    console.log(
-      `[RemoteVideo] Attache stream pour ${playerId}: ${stream.getTracks().length} tracks`,
-      stream.getTracks().map(t => `${t.kind}:${t.readyState}`)
-    );
-
-    // État initial des tracks
-    const audioTrack = stream.getAudioTracks()[0];
-    const videoTrack = stream.getVideoTracks()[0];
-    if (audioTrack) setMicEnabled(audioTrack.enabled);
-    if (videoTrack) setCamEnabled(videoTrack.enabled);
-
-    // Surveille les changements en temps réel
-    const handleMute = (e: Event) => {
-      const track = e.target as MediaStreamTrack;
-      if (track.kind === 'audio') setMicEnabled(false);
-      if (track.kind === 'video') setCamEnabled(false);
-    };
-    const handleUnmute = (e: Event) => {
-      const track = e.target as MediaStreamTrack;
-      if (track.kind === 'audio') setMicEnabled(true);
-      if (track.kind === 'video') setCamEnabled(true);
-    };
-
-    stream.getTracks().forEach(track => {
-      track.addEventListener('mute', handleMute);
-      track.addEventListener('unmute', handleUnmute);
-    });
 
     video.srcObject = stream;
     audio.srcObject = stream;
@@ -59,12 +52,7 @@ export function RemoteVideo({ playerId, stream, className = '' }: RemoteVideoPro
       try { await audio.play(); } catch {}
     };
 
-    const onAddTrack = (e: MediaStreamTrackEvent) => {
-      const track = e.track;
-      track.addEventListener('mute', handleMute);
-      track.addEventListener('unmute', handleUnmute);
-      if (track.kind === 'audio') setMicEnabled(track.enabled);
-      if (track.kind === 'video') setCamEnabled(track.enabled);
+    const onAddTrack = () => {
       video.srcObject = stream;
       audio.srcObject = stream;
       tryPlay();
@@ -80,10 +68,6 @@ export function RemoteVideo({ playerId, stream, className = '' }: RemoteVideoPro
 
     return () => {
       stream.removeEventListener('addtrack', onAddTrack);
-      stream.getTracks().forEach(track => {
-        track.removeEventListener('mute', handleMute);
-        track.removeEventListener('unmute', handleUnmute);
-      });
     };
   }, [stream, playerId]);
 
@@ -95,7 +79,7 @@ export function RemoteVideo({ playerId, stream, className = '' }: RemoteVideoPro
       <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
       <audio ref={audioRef} autoPlay />
 
-      {/* Icônes micro + caméra en haut à droite */}
+      {/* ✅ Icônes mises à jour via WebSocket */}
       <div className="absolute top-1.5 right-1.5 flex gap-1">
         {micEnabled
           ? <Mic className="w-4 h-4 text-white drop-shadow" />

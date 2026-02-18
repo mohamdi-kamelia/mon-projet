@@ -5,7 +5,7 @@ import { LoginPage, ForgotPasswordPage } from './pages/auth';
 import UnityGame from './components/UnityGame/UnityGame';
 import Footer from './components/Footer';
 import { Webrtc } from './components/Webrtc';
-import { useRef, useCallback } from 'react';
+import { useRef, useCallback, useEffect, useState } from 'react';
 import { useAuth } from './contexts/AuthContext';
 import { useWebSocket } from './hooks/webRTC/use-websocket';
 import { useProximity } from './hooks/webRTC/use-proximity';
@@ -17,7 +17,21 @@ function UnityGameWithFooter() {
 
   const ws = useWebSocket();
   const { handleJoinWebRTC, handleLeaveWebRTC } = useProximity(ws);
-  const { setLocalStream, toggleMic, toggleCamera } = useWebRTCControls();
+  const { setLocalStream, setWs, toggleMic, toggleCamera } = useWebRTCControls();
+
+
+  const [localStream, setLocalStreamState] = useState<MediaStream | null>(null);
+
+  const handleLocalStream = useCallback((stream: MediaStream | null) => {
+    setLocalStream(stream);         // pour useWebRTCControls (toggle)
+    setLocalStreamState(stream);    // pour Footer (icônes)
+  }, [setLocalStream]);
+
+  const [inBBBMeeting, setInBBBMeeting] = useState(false);
+
+  useEffect(() => {
+    setWs(ws, user?.id.toString() ?? '');
+  }, [ws, user, setWs]);
 
   const getPlayerPosition = useCallback(() => ({ x: 0, y: 0, z: 0 }), []);
   const getPlayerDistance = useCallback((_playerId: string) => 5.0, []);
@@ -28,6 +42,16 @@ function UnityGameWithFooter() {
 
   const handleChangeUserName = useCallback((newUserName: string) => {
     jitsiRef.current?.userNameChange(newUserName);
+  }, []);
+
+  const handleJoinBBB = useCallback(() => {
+    console.log('[BBB] Réunion démarrée → WebRTC suspendu');
+    setInBBBMeeting(true);
+  }, []);
+
+  const handleLeaveBBB = useCallback(() => {
+    console.log('[BBB] Réunion fermée → WebRTC réactivé');
+    setInBBBMeeting(false);
   }, []);
 
   return (
@@ -41,6 +65,8 @@ function UnityGameWithFooter() {
             userName={user?.name || ""}
             onJoinWebRTC={handleJoinWebRTC}
             onLeaveWebRTC={handleLeaveWebRTC}
+            onJoinBBB={handleJoinBBB}
+            onLeaveBBB={handleLeaveBBB}
           />
         </div>
       </div>
@@ -48,16 +74,25 @@ function UnityGameWithFooter() {
       {user && ws && (
         <div className="fixed bottom-20 right-5 z-[9999] pointer-events-none">
           <div className="pointer-events-auto">
-            <Webrtc
-              ws={ws}
-              playerId={user.id.toString()}
-              getPlayerPosition={getPlayerPosition}
-              getPlayerDistance={getPlayerDistance}
-              videoPosition="top-right"
-              enabled={true}
-              onLocalStream={setLocalStream}
-            />
+            {!inBBBMeeting && (
+              <Webrtc
+                ws={ws}
+                playerId={user.id.toString()}
+                getPlayerPosition={getPlayerPosition}
+                getPlayerDistance={getPlayerDistance}
+                videoPosition="top-right"
+                enabled={true}
+                onLocalStream={handleLocalStream}
+              />
+            )}
           </div>
+        </div>
+      )}
+
+      {inBBBMeeting && (
+        <div className="fixed bottom-20 right-5 z-[9999] bg-blue-600/90 text-white text-xs px-3 py-2 rounded-lg shadow-lg flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+          En réunion BBB — WebRTC suspendu
         </div>
       )}
 
@@ -69,6 +104,7 @@ function UnityGameWithFooter() {
           userName={user?.name || ""}
           userEmail={user?.email || ""}
           onLogout={logout}
+          localStream={localStream} 
         />
       </footer>
     </div>

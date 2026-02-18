@@ -57,7 +57,7 @@ func addClient(client *Client) {
 	clientsMu.Lock()
 	defer clientsMu.Unlock()
 	clients[client.ID] = client
-	log.Printf("✅ Client connecté: %s (total: %d)", client.ID, len(clients))
+	log.Printf("Client connecté: %s (total: %d)", client.ID, len(clients))
 }
 
 func removeClient(playerID string) {
@@ -67,7 +67,7 @@ func removeClient(playerID string) {
 		delete(unityMap, c.UnityID)
 	}
 	delete(clients, playerID)
-	log.Printf("❌ Client déconnecté: %s (total: %d)", playerID, len(clients))
+	log.Printf("Client déconnecté: %s (total: %d)", playerID, len(clients))
 }
 
 func resolveID(id string) string {
@@ -97,13 +97,26 @@ func sendToPlayer(playerID string, msg WSMessage) {
 	clientsMu.RUnlock()
 
 	if !exists {
-		log.Printf("⚠️  Joueur introuvable: %s (résolu: %s)", playerID, resolvedID)
+		log.Printf("Joueur introuvable: %s (résolu: %s)", playerID, resolvedID)
 		return
 	}
 	client.mu.Lock()
 	defer client.mu.Unlock()
 	if err := client.Conn.WriteJSON(msg); err != nil {
-		log.Printf("❌ Erreur envoi à %s: %v", playerID, err)
+		log.Printf("Erreur envoi à %s: %v", playerID, err)
+	}
+}
+
+func broadcastToAll(senderID string, msg WSMessage) {
+	clientsMu.RLock()
+	defer clientsMu.RUnlock()
+	for id, client := range clients {
+		if id == senderID {
+			continue
+		}
+		client.mu.Lock()
+		client.Conn.WriteJSON(msg)
+		client.mu.Unlock()
 	}
 }
 
@@ -119,7 +132,7 @@ func registerUnityID(sqlID string, unityID string) {
 		}
 		c.UnityID = unityID
 		unityMap[unityID] = sqlID
-		log.Printf("🔗 Mapping Unity ID: %s <-> SQL ID: %s", unityID, sqlID)
+		log.Printf("Mapping Unity ID: %s <-> SQL ID: %s", unityID, sqlID)
 	}
 }
 
@@ -142,11 +155,6 @@ func tryResolvePendingProximity() {
 
 			registerUnityID(b.senderSQLID, a.targetUnityID)
 			registerUnityID(a.senderSQLID, b.targetUnityID)
-
-			log.Printf("🔀 Mapping croisé: SQL %s <-> Unity %s | SQL %s <-> Unity %s",
-				a.senderSQLID, b.targetUnityID,
-				b.senderSQLID, a.targetUnityID,
-			)
 
 			pendingProximity = append(pendingProximity[:j], pendingProximity[j+1:]...)
 			pendingProximity = append(pendingProximity[:i], pendingProximity[i+1:]...)
@@ -174,8 +182,6 @@ func tryResolvePendingProximity() {
 
 				for _, pm := range deduped {
 					resolvedTo := resolveID(pm.toUnityID)
-					log.Printf("🔁 Replay %s: %s -> %s (résolu: %s)",
-						pm.msgType, pm.fromPlayer, pm.toUnityID, resolvedTo)
 					sendToPlayer(resolvedTo, WSMessage{
 						Type:       pm.msgType,
 						FromPlayer: pm.fromPlayer,
@@ -215,7 +221,7 @@ func tryResolvePendingProximity() {
 func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Printf("❌ Erreur upgrade WebSocket: %v", err)
+		log.Printf("Erreur upgrade WebSocket: %v", err)
 		return
 	}
 	defer conn.Close()
@@ -225,7 +231,7 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	for {
 		var msg WSMessage
 		if err := conn.ReadJSON(&msg); err != nil {
-			log.Printf("❌ Erreur lecture WebSocket: %v", err)
+			log.Printf("Erreur lecture WebSocket: %v", err)
 			break
 		}
 
@@ -234,7 +240,6 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		case "join":
 			playerID = msg.PlayerID
 			if playerID == "" {
-				log.Println("⚠️  Message join sans playerID")
 				continue
 			}
 			client := &Client{ID: playerID, Conn: conn}
@@ -254,8 +259,6 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 			targetID := msg.TargetPlayerID
-			log.Printf("🟢 Proximité connect: %s -> %s (%.1fm)", playerID, targetID, msg.Distance)
-
 			resolvedTarget := resolveID(targetID)
 
 			if resolvedTarget == targetID {
@@ -301,7 +304,6 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			}
 			targetID := msg.TargetPlayerID
 			resolvedTarget := resolveID(targetID)
-			log.Printf("🔴 Proximité disconnect: %s -> %s", playerID, resolvedTarget)
 
 			pendingMu.Lock()
 			for i := len(pendingProximity) - 1; i >= 0; i-- {
@@ -326,17 +328,26 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 				}),
 			})
 
+		// ✅ Nouveau : relaye l'état mic/cam à tous les autres clients
+		case "webrtc_media_state":
+			if playerID == "" {
+				continue
+			}
+			log.Printf("Media state de %s: %s", playerID, string(msg.Data))
+			broadcastToAll(playerID, WSMessage{
+				Type:       "webrtc_media_state",
+				FromPlayer: playerID,
+				Data:       msg.Data,
+			})
+
 		case "webrtc_offer", "webrtc_answer", "webrtc_ice":
 			if msg.ToPlayer == "" {
-				log.Printf("⚠️  Message %s sans toPlayer", msg.Type)
 				continue
 			}
 
 			resolvedTo := resolveID(msg.ToPlayer)
-			log.Printf("📨 Relai %s: %s -> %s (résolu: %s)", msg.Type, playerID, msg.ToPlayer, resolvedTo)
 
 			if !isReachable(msg.ToPlayer) {
-				log.Printf("📥 Mise en attente %s pour %s", msg.Type, msg.ToPlayer)
 				pendingMu.Lock()
 				if msg.Type == "webrtc_offer" || msg.Type == "webrtc_answer" {
 					for i := len(pendingMessages) - 1; i >= 0; i-- {
@@ -363,7 +374,7 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 		case "player_update":
 		default:
-			log.Printf("⚠️  Message inconnu: %s", msg.Type)
+			log.Printf("Message inconnu: %s", msg.Type)
 		}
 	}
 
