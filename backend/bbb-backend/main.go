@@ -12,7 +12,6 @@ import (
 	"github.com/rs/cors"
 )
 
-// Common response helpers
 func respondJSON(w http.ResponseWriter, data interface{}, statusCode int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
@@ -28,34 +27,31 @@ func handleHealth(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	// Charger les variables d'environnement
 	if err := godotenv.Load(); err != nil {
 		log.Println("⚠️  No .env file found, using defaults")
 	}
 
-	// Configuration
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 	}
 
-	// Init auth (JWT secret)
 	initAuth()
 
-	// Init database
 	if err := initDB(); err != nil {
 		log.Fatalf("❌ Failed to initialize database: %v", err)
 	}
 	defer db.Close()
 
-	// Init BBB config
 	initBBB()
 
-	// Router
 	router := mux.NewRouter()
 
 	// Health check
 	router.HandleFunc("/health", handleHealth).Methods("GET")
+
+	//  WebSocket (WebRTC)
+	router.HandleFunc("/api/ws", handleWebSocket)
 
 	// Auth routes (public)
 	router.HandleFunc("/api/auth/register", handleRegister).Methods("POST")
@@ -84,9 +80,10 @@ func main() {
 
 	handler := c.Handler(router)
 
-	// Démarrer le serveur
+	// start server
 	log.Printf("🚀 Backend started on port %s", port)
 	log.Printf("🔗 API URL: http://localhost:%s", port)
+	log.Printf("🔌 WebSocket: ws://localhost:%s/ws", port)
 	log.Printf("📊 Database: ./mam_auth.db (SQLite)")
 	log.Fatal(http.ListenAndServe(":"+port, handler))
 }

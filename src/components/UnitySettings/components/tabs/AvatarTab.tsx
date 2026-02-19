@@ -17,7 +17,7 @@ interface AvatarTabProps {
     portalContainer?: HTMLElement | null;
 }
 
-export function AvatarTab({ onEnterCustomization, onCloseModal, portalContainer }: AvatarTabProps) {
+export function AvatarTab({ onEnterCustomization, onCloseModal }: AvatarTabProps) {
     const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
     const handleConfirm = () => {
@@ -36,7 +36,7 @@ export function AvatarTab({ onEnterCustomization, onCloseModal, portalContainer 
                     
                     <button
                         onClick={() => setShowConfirmDialog(true)}
-                        className="px-6 py-3 bg-[#237ECE] hover:bg-[#2a8fe0] text-white rounded-lg font-medium shadow-md transition-colors duration-200 flex items-center gap-2"
+                        className="px-6 py-3 bg-[#237ECE] hover:bg-[#2a8fe0] text-white hover:text-blue-400 rounded-lg font-medium shadow-md transition-colors duration-200 flex items-center gap-2"
                     >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -48,24 +48,26 @@ export function AvatarTab({ onEnterCustomization, onCloseModal, portalContainer 
 
             {/* Confirmation Dialog */}
             <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-                <DialogContent className="sm:max-w-md" container={portalContainer}>
+                <DialogContent className="sm:max-w-md bg-[#1a2332] border-slate-700">
                     <DialogHeader>
-                        <DialogTitle>Confirmation</DialogTitle>
-                        <DialogDescription>
+                        <DialogTitle className="text-white">Confirmation</DialogTitle>
+                        
+                        <DialogDescription className="text-slate-300">
                             Voulez-vous quitter la scène actuelle pour personnaliser votre avatar ?
                         </DialogDescription>
                     </DialogHeader>
+                    
                     <DialogFooter className="sm:justify-end gap-2">
                         <Button
                             type="button"
-                            variant="secondary"
+                            className="bg-slate-700 hover:bg-slate-600 text-white hover:text-blue-400"
                             onClick={() => setShowConfirmDialog(false)}
                         >
                             Annuler
                         </Button>
                         <Button
                             type="button"
-                            className="bg-[#237ECE] hover:bg-[#2a8fe0] text-white"
+                            className="bg-[#237ECE] hover:bg-[#2a8fe0] text-white hover:text-blue-400"
                             onClick={handleConfirm}
                         >
                             Confirmer

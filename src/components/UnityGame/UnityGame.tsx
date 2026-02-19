@@ -4,7 +4,9 @@ import { useUnityInteractionPrompt, InteractionPrompt } from '../InteractionProm
 import { useUnityMap, MapModal, MapButton } from '../UnityMap';
 import { EViewType } from '../UnitySettings/types/settings.types';
 import { CursorHelp } from './components/CursorHelp';
-import { useEffect, useRef } from 'react';
+import { useUnityProjectSelection } from './hooks/useUnityProjectSelection';
+import { ProjectSelectionModal } from './components/ProjectSelectionModal';
+import { useEffect, useRef, useCallback } from 'react';
 
 // Custom hooks
 import {
@@ -19,7 +21,6 @@ import {
     useUnityNewsStand,
     useUnityMedia,
     useUnityGame,
-    useUnityProximityVoc
 } from './hooks';
 
 // Components
@@ -32,12 +33,10 @@ import {
     LibraryDeskModal,
     NewsStandModal,
     MediaModal,
-    GameModal
+    GameModal,
 } from './components';
 
 import BBBWrapper from './components/BBB';
-
-// Camera rotation buttons for isometric view
 import { CameraRotationButtons } from '../CameraRotation/CameraRotationButtons';
 
 
@@ -46,16 +45,22 @@ interface UnityGameProps {
     conferenceUrl?: string;
     bbbRef?: React.RefObject<any>;
     userName?: string;
+    onJoinWebRTC?: (targetPlayerId: string) => void;
+    onLeaveWebRTC?: (targetPlayerId: string) => void;
+    onJoinBBB?: () => void;
+    onLeaveBBB?: () => void;
 }
 
 function UnityGame({ 
     onChangeJitsiRoom, 
     conferenceUrl: webConferenceUrl,
     bbbRef: externalBbbRef,
-    userName 
+    userName,
+    onJoinWebRTC,
+    onLeaveWebRTC,
+    onJoinBBB,
+    onLeaveBBB,
 }: UnityGameProps) {
-    // Unity context setup
-    //const baseUnity = "https://mam-virtuelle.s3.fr-par.scw.cloud/UnityBuild/Build/";
     const baseUnity = "/UnityBuild/Build/"; // Use this for local builds
     const buildName = "UnityBuild";
     
@@ -63,7 +68,8 @@ function UnityGame({
         unityProvider, 
         isLoaded, 
         loadingProgression, 
-        UNSAFE__unityInstance, 
+        UNSAFE__unityInstance,
+        sendMessage,
         addEventListener, 
         removeEventListener 
     } = useUnityContext({
@@ -73,10 +79,23 @@ function UnityGame({
         codeUrl: baseUnity + buildName + ".wasm",
     });
 
+    // Function to focus the Unity canvas (used by modals after closing)
+    const focusUnityCanvas = useCallback(() => {
+        const canvas = document.getElementById('unity-canvas') as HTMLCanvasElement;
+        if (canvas) {
+            canvas.focus();
+        }
+    }, []);
+
+    // Project Selection Hook
+    const projectSelection = useUnityProjectSelection(
+        sendMessage,
+        addEventListener,
+        removeEventListener
+    );
+
     const bbbRef = useRef<any>(null);
     const finalBbbRef = externalBbbRef || bbbRef;
-
-    // Custom hooks - all modal and interaction logic extracted
     const tvModal = useUnityTV({
         addEventListener,
         removeEventListener,
@@ -161,17 +180,45 @@ function UnityGame({
         unityInstance: UNSAFE__unityInstance
     });
 
-    const proximityCall = useUnityProximityVoc({
-        addEventListener,
-        removeEventListener,
-        isLoaded,
-        unityInstance: UNSAFE__unityInstance
-    })
-
-    // Automatically focus Unity canvas on initial load
     useUnityInitialFocus({ isLoaded });
 
-    // Expose Unity instance globally for NameModal and other components
+    useEffect(() => {
+        if (!isLoaded) return;
+
+        const handleJoin = (targetPlayerId: string) => {
+            console.log('Unity: JoinWebRTC ->', targetPlayerId);
+            onJoinWebRTC?.(targetPlayerId);
+        };
+
+        const handleLeave = (targetPlayerId: string) => {
+            console.log('Unity: LeaveWebRTC ->', targetPlayerId);
+            onLeaveWebRTC?.(targetPlayerId ?? '');
+        };
+
+        addEventListener('JoinWebRTC', handleJoin);
+        addEventListener('LeaveWebRTC', handleLeave);
+
+        return () => {
+            removeEventListener('JoinWebRTC', handleJoin);
+            removeEventListener('LeaveWebRTC', handleLeave);
+        };
+    }, [isLoaded, addEventListener, removeEventListener, onJoinWebRTC, onLeaveWebRTC]);
+
+    useEffect(() => {
+        if (!isLoaded) return;
+
+        const handleJoinBBB = () => onJoinBBB?.();
+        const handleLeaveBBB = () => onLeaveBBB?.();
+
+        addEventListener('JoinBBB', handleJoinBBB);
+        addEventListener('LeaveBBB', handleLeaveBBB);
+
+        return () => {
+            removeEventListener('JoinBBB', handleJoinBBB);
+            removeEventListener('LeaveBBB', handleLeaveBBB);
+        };
+    }, [isLoaded, addEventListener, removeEventListener, onJoinBBB, onLeaveBBB]);
+
     useEffect(() => {
         if (isLoaded && UNSAFE__unityInstance) {
             (window as any).UNSAFE__unityInstance = UNSAFE__unityInstance;
@@ -188,11 +235,11 @@ function UnityGame({
         mediaModal.isOpen ||
         gameModal.isOpen ||
         settingsHook.isOpen ||
-        mapHook.isOpen;
+        mapHook.isOpen ||
+        projectSelection.isOpen; // <-- ADD THIS: include project selection modal
 
     return (
         <div className="flex flex-col place-self-center bg-gradient-to-br from-[#212952] to-[#a9bcdb] bg-[url(/images/header_background.png)] bg-cover h-full w-full">
-
 
             {/* Loading screen */}
             {!isLoaded && <LoadingScreen progress={loadingProgression} />}
@@ -228,7 +275,7 @@ function UnityGame({
                 {/* Media/Poster Modal */}
                 <MediaModal {...mediaModal} />
 
-                {/* Game Modal (Chess, Connect4, etc.) */}
+                {/* Game Modal (Chess, Connect4, etc.)  */}
                 <GameModal {...gameModal} playerName={userName} />
 
                 {/* BBB Wrapper */}
@@ -253,6 +300,19 @@ function UnityGame({
                     currentSceneIndex={mapHook.currentSceneIndex}
                 />
 
+                {/* Project Selection Modal */}
+                <ProjectSelectionModal
+                    isOpen={projectSelection.isOpen}
+                    projects={projectSelection.projects}
+                    selectedProject={projectSelection.selectedProject}
+                    error={projectSelection.error}
+                    isLoading={projectSelection.isLoading}
+                    onSelectProject={projectSelection.selectProject}
+                    onConfirm={projectSelection.confirmSelection}
+                    onClose={projectSelection.closeModal}
+                    focusUnityCanvas={focusUnityCanvas}
+                />
+
                 {/* Only show when in Third Person View AND loaded */}
                 {isLoaded && !conference.isFullscreen && mapHook.currentSceneIndex > 1 && (
                     <CursorHelp isVisible={settingsHook.settings.viewType === EViewType.THIRD_PERSON} />
@@ -272,7 +332,7 @@ function UnityGame({
                     <MapButton onClick={mapHook.openMap} />
                 )}
 
-                {/*Interaction Prompt - only show when no modal is open */}
+                {/* Interaction Prompt - only show when no modal is open */}
                 {!isAnyModalOpen && mapHook.currentSceneIndex > 1 && (
                     <InteractionPrompt
                         isVisible={interactionPrompt.isVisible}
@@ -289,7 +349,7 @@ function UnityGame({
                     />
                 )}
 
-                {/* Settings button (web-triggered) */}
+                {/* Settings button */}
                 {isLoaded && !conference.isFullscreen && mapHook.currentSceneIndex > 1 && !settingsHook.isOpen && (
                     <SettingsButton onClick={settingsHook.openModal} />
                 )}

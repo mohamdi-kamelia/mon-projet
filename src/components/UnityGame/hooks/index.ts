@@ -10,4 +10,5 @@ export { useUnityInitialFocus } from './useUnityInitialFocus';
 export { useUnityNewsStand } from './useUnityNewsStand';
 export { useUnityMedia } from './useUnityMedia';
 export { useUnityGame } from './useUnityGame';
-export { useUnityProximityVoc } from './useUnityProximityCharacters';
+//export { useUnityProximityVoc } from './useUnityProximityCharacters';
+export { useUnityProjectSelection } from './useUnityProjectSelection';
