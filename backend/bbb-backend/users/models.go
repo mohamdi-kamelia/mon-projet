@@ -53,11 +53,11 @@ const (
 	PermEditDocs         Permission = "edit_docs"
 	PermPublishDocs      Permission = "publish_docs"
 	PermManageDocFilters Permission = "manage_doc_filters"
-	PermPublishNews      Permission = "publish_news"   // publish news
-	PermCreateGT         Permission = "create_gt"      // create working groups
-	PermManageOwnGT      Permission = "manage_own_gt"  // manage own GT members/media
-	PermManageAllGT      Permission = "manage_all_gt"  // manage any GT
-	PermOrgConference    Permission = "org_conference" // organise a conference
+	PermPublishNews      Permission = "publish_news"
+	PermCreateGT         Permission = "create_gt"
+	PermManageOwnGT      Permission = "manage_own_gt"
+	PermManageAllGT      Permission = "manage_all_gt"
+	PermOrgConference    Permission = "org_conference"
 	PermAnimConference   Permission = "anim_conference"
 	PermConfigAmphi      Permission = "config_amphi"
 	PermAccessGames      Permission = "access_games"

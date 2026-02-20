@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"os"
 
+	"bbb-backend/users"
+
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
 	_ "github.com/mattn/go-sqlite3"
@@ -43,6 +45,15 @@ func main() {
 	}
 	defer db.Close()
 
+	// ── Users package init ───────────────────────────────────────────────
+	usersRepo := users.NewRepository(db)
+	if err := usersRepo.Migrate(); err != nil {
+		log.Fatalf("❌ Failed to migrate users schema: %v", err)
+	}
+	usersSvc := users.NewService(usersRepo, jwtSecret)
+	usersHandler := users.NewHandler(usersSvc)
+	log.Println("✅ Users/Groups module initialized")
+
 	initBBB()
 
 	router := mux.NewRouter()
@@ -50,7 +61,7 @@ func main() {
 	// Health check
 	router.HandleFunc("/health", handleHealth).Methods("GET")
 
-	//  WebSocket (WebRTC)
+	// WebSocket (WebRTC)
 	router.HandleFunc("/api/ws", handleWebSocket)
 
 	// Auth routes (public)
@@ -70,6 +81,9 @@ func main() {
 	router.HandleFunc("/api/bbb/eject-user", handleEjectUser).Methods("POST")
 	router.HandleFunc("/api/bbb/participants", handleGetParticipants).Methods("GET")
 
+	// Users & Groups routes
+	usersHandler.RegisterRoutes(router, usersSvc)
+
 	// CORS
 	c := cors.New(cors.Options{
 		AllowedOrigins:   []string{"*"},
@@ -80,7 +94,6 @@ func main() {
 
 	handler := c.Handler(router)
 
-	// start server
 	log.Printf("🚀 Backend started on port %s", port)
 	log.Printf("🔗 API URL: http://localhost:%s", port)
 	log.Printf("🔌 WebSocket: ws://localhost:%s/ws", port)
